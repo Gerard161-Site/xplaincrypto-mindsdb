@@ -1,0 +1,15 @@
+# Secrets - NEVER COMMIT
+secrets/
+*.key
+*.txt
+*_api_key*
+*_password*
+.env*
+
+# Logs
+logs/
+*.log
+
+# Python
+__pycache__/
+*.pyc

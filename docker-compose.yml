@@ -1,0 +1,130 @@
+version: '3.8'
+
+services:
+  # ====================
+  # MINDSDB AI/ML SERVICE
+  # ====================
+  
+  mindsdb:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: xplaincrypto-mindsdb
+    environment:
+      # Core MindsDB Configuration
+      MINDSDB_DEFAULT_PROJECT: crypto-analytics
+      MINDSDB_LOG_LEVEL: INFO
+      MINDSDB_DB_SERVICE_HOST: 0.0.0.0
+      MINDSDB_DB_SERVICE_PORT: 47334
+      
+      # Database Connections (connect to existing infrastructure)
+      POSTGRES_HOST: 142.93.49.20  # External connection to existing postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: crypto_data
+      POSTGRES_USER: mindsdb
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+      
+      # Redis Configuration (connect to existing redis)
+      REDIS_HOST: 142.93.49.20  # External connection to existing redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD_FILE: /run/secrets/redis_password
+      
+      # AI Engine API Keys
+      OPENAI_API_KEY_FILE: /run/secrets/openai_api_key
+      ANTHROPIC_API_KEY_FILE: /run/secrets/anthropic_api_key
+      TIMEGPT_API_KEY_FILE: /run/secrets/timegpt_api_key
+      
+      # Data Source API Keys
+      COINMARKETCAP_API_KEY_FILE: /run/secrets/coinmarketcap_api_key
+      DUNE_API_KEY_FILE: /run/secrets/dune_api_key
+      COINGECKO_API_KEY_FILE: /run/secrets/coingecko_api_key
+      
+    secrets:
+      - postgres_password
+      - redis_password
+      - openai_api_key
+      - anthropic_api_key
+      - timegpt_api_key
+      - coinmarketcap_api_key
+      - dune_api_key
+      - coingecko_api_key
+      
+    volumes:
+      # Persistent MindsDB data
+      - mindsdb_data:/opt/mindsdb/var
+      
+      # Custom handlers
+      - ../mindsdb-handlers:/opt/mindsdb/handlers/custom:ro
+      
+      # Agent configurations
+      - ./agents:/opt/mindsdb/agents:ro
+      
+      # SQL initialization scripts
+      - ./sql:/opt/mindsdb/sql:ro
+      
+      # Logs
+      - ./logs:/opt/mindsdb/logs
+      
+    ports:
+      - "47334:47334"  # MindsDB API
+      - "47335:47335"  # MindsDB HTTP
+      
+    networks:
+      - xplaincrypto_network
+      
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:47334/api/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+      
+    restart: unless-stopped
+    
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.mindsdb.rule=Host(`mindsdb.xplaincrypto.ai`)"
+      - "traefik.http.routers.mindsdb.tls=true"
+      - "traefik.http.services.mindsdb.loadbalancer.server.port=47334"
+
+# ====================
+# SECRETS CONFIGURATION
+# ====================
+
+secrets:
+  postgres_password:
+    file: ./secrets/postgres_password.txt
+  redis_password:
+    file: ./secrets/redis_password.txt
+  openai_api_key:
+    file: ./secrets/openai_api_key.txt
+  anthropic_api_key:
+    file: ./secrets/anthropic_api_key.txt
+  timegpt_api_key:
+    file: ./secrets/timegpt_api_key.txt
+  coinmarketcap_api_key:
+    file: ./secrets/coinmarketcap_api_key.txt
+  dune_api_key:
+    file: ./secrets/dune_api_key.txt
+  coingecko_api_key:
+    file: ./secrets/coingecko_api_key.txt
+
+# ====================
+# VOLUMES
+# ====================
+
+volumes:
+  mindsdb_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /var/lib/xplaincrypto/mindsdb
+
+# ====================
+# NETWORKS - CONNECT TO EXISTING INFRASTRUCTURE
+# ====================
+
+networks:
+  xplaincrypto_network:
+    external: true  # Connect to existing infrastructure network 
