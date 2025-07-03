@@ -4,88 +4,44 @@ set -e
 echo "🚀 XplainCrypto MindsDB Complete Deployment"
 echo "==========================================="
 
-# Color codes
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m'
-
-print_status() {
-    case $1 in
-        "PASS") echo -e "${GREEN}✅ $2${NC}" ;;
-        "FAIL") echo -e "${RED}❌ $2${NC}"; exit 1 ;;
-        "WARN") echo -e "${YELLOW}⚠️  $2${NC}" ;;
-        *) echo -e "ℹ️  $2" ;;
-    esac
-}
-
-# 1. Validate secrets
-if [ ! -d "secrets" ] || [ ! -f "secrets/openai_api_key.txt" ]; then
-    print_status "FAIL" "Secrets directory missing. Run: mkdir -p secrets && setup API keys"
+# Check secrets exist
+if [ ! -d "secrets" ]; then
+    echo "❌ Secrets directory not found!"
+    exit 1
 fi
-print_status "PASS" "Secrets validation"
+echo "✅ Secrets validation"
 
-# 2. Setup volumes
-print_status "INFO" "Setting up persistent volumes..."
-sudo mkdir -p /var/lib/xplaincrypto/mindsdb/{var,logs,data}
+# Setup volumes
+echo "ℹ️  Setting up persistent volumes..."
+sudo mkdir -p /var/lib/xplaincrypto/mindsdb
 sudo chown -R 1000:1000 /var/lib/xplaincrypto/mindsdb
 mkdir -p logs
-print_status "PASS" "Volume setup"
+echo "✅ Volume setup"
 
-# 3. Network setup
+# Create network
 docker network create xplaincrypto_network 2>/dev/null || true
-print_status "PASS" "Network setup"
+echo "✅ Network setup"
 
-# 4. Deploy containers
-print_status "INFO" "Deploying containers..."
+# Deploy with docker-compose
+echo "ℹ️  Deploying containers..."
+docker-compose down 2>/dev/null || true
+docker-compose build --no-cache
+docker-compose up -d
 
-# Enable BuildKit and SSH forwarding
-export DOCKER_BUILDKIT=1
-
-# Build with SSH forwarding
-echo "🔨 Building with SSH..."
-docker build --ssh default --no-cache -t xplaincrypto-mindsdb-mindsdb .
-
-# Deploy
-echo "🚀 Starting containers..."
-docker-compose up -d --no-build
-
-# Wait and test
-echo "⏳ Waiting 120 seconds..."
+# Wait for startup
+echo "⏳ Waiting 120 seconds for MindsDB to initialize..."
 sleep 120
 
-curl -s http://localhost:47334/api/status
-echo "✅ Complete!"
-
-# 6. Initialize databases
-print_status "INFO" "Initializing databases and handlers..."
-sleep 10
-
-# Create PostgreSQL connection
-POSTGRES_PASS=$(cat secrets/postgres_password.txt)
-curl -s -X POST "http://localhost:47334/api/sql/query" \
-    -H "Content-Type: application/json" \
-    -d "{\"query\":\"CREATE DATABASE IF NOT EXISTS postgres_crypto WITH ENGINE = 'postgres', PARAMETERS = {'host': '142.93.49.20', 'port': 5432, 'database': 'crypto_data', 'user': 'mindsdb', 'password': '$POSTGRES_PASS'};\"}" >/dev/null
-
-# Create CoinMarketCap connection
-CMC_KEY=$(cat secrets/coinmarketcap_api_key.txt)
-curl -s -X POST "http://localhost:47334/api/sql/query" \
-    -H "Content-Type: application/json" \
-    -d "{\"query\":\"CREATE DATABASE IF NOT EXISTS coinmarketcap_data WITH ENGINE = 'coinmarketcap', PARAMETERS = {'api_key': '$CMC_KEY'};\"}" >/dev/null
-
-print_status "PASS" "Database initialization"
-
-# 7. Final health check
-if curl -f -s "http://localhost:47334/api/sql/query" \
-    -H "Content-Type: application/json" \
-    -d '{"query": "SHOW DATABASES;"}' | grep -q "postgres_crypto"; then
-    print_status "PASS" "Health check - databases accessible"
+# Test connection
+echo "🔍 Testing MindsDB connection..."
+response=$(curl -s http://localhost:47334/api/status || echo "failed")
+if [[ $response == *"mindsdb_version"* ]]; then
+    echo "✅ MindsDB API responding correctly"
+    echo $response
 else
-    print_status "WARN" "Health check - some databases may not be ready"
+    echo "❌ MindsDB not responding properly"
+    echo $response
+    exit 1
 fi
 
-echo -e "\n${GREEN}🎉 MindsDB Deployment Complete!${NC}"
-echo "================================="
-echo "📊 MindsDB API: http://localhost:47334"
-echo "🔍 Test: curl http://localhost:47334/api/status"
-echo "📋 Monitor: docker logs -f xplaincrypto-mindsdb" 
+echo "✅ MindsDB deployment complete!" 
