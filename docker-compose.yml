@@ -17,19 +17,54 @@ services:
       # Critical: MindsDB storage persistence
       - mindsdb_storage:/mindsdb/var
       # Secrets mounting (read-only)
-      - ./secrets:/secrets:ro
+      - ./secrets:/run/secrets:ro
     environment:
       - MINDSDB_STORAGE_PATH=/mindsdb/var
       - PYTHONUNBUFFERED=1
+      # Use existing shared Redis
+      - REDIS_HOST=xplaincrypto-redis
+      - REDIS_PORT=6379
+      - REDIS_DB=0                    # MindsDB uses DB 0
+      - REDIS_PASSWORD=redis_secure_pass_dev123
+      # Database connections  
+      - POSTGRES_HOST=postgres-crypto
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=crypto_data
+      - POSTGRES_USER=mindsdb
     networks:
       - xplaincrypto_network
     restart: unless-stopped
+    depends_on:
+      postgres-crypto:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:47334/api/status"]
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 60s
+
+  postgres-crypto:
+    image: postgres:15-alpine
+    container_name: xplaincrypto-postgres-crypto
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: crypto_data
+      POSTGRES_USER: mindsdb
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_crypto_data:/var/lib/postgresql/data
+      - ./sql/04-dashboards/postgres-tables.sql:/docker-entrypoint-initdb.d/01-init-tables.sql
+    secrets:
+      - postgres_password
+    networks:
+      - xplaincrypto_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mindsdb -d crypto_data"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 # ====================
 # SECRETS CONFIGURATION
@@ -65,11 +100,9 @@ volumes:
       o: bind
       device: /var/lib/xplaincrypto/mindsdb
       
-  handler_configs:
+  postgres_crypto_data:
     driver: local
-    
-  mindsdb_logs:
-    driver: local
+    name: xplaincrypto_postgres_crypto_data
 
 # ====================
 # NETWORKS - CONNECT TO EXISTING INFRASTRUCTURE
