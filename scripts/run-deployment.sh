@@ -29,10 +29,10 @@ docker-compose build --no-cache
 echo "🚀 Starting MindsDB..."
 docker-compose up -d
 
-echo "⏳ Waiting for MindsDB API..."
-sleep 30
+echo "⏳ Waiting 60 seconds for MindsDB to start..."
+sleep 60
 
 echo "🔍 Testing MindsDB connection..."
-curl -f http://localhost:47334/api/status || echo "❌ MindsDB not responding"
+curl -f http://localhost:47334/api/status || echo "❌ MindsDB not responding yet"
 
 echo "✅ MindsDB deployment complete!" 

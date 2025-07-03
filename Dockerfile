@@ -30,9 +30,6 @@ COPY sql/ /opt/mindsdb/sql/
 # Copy agent definitions
 COPY agents/ /opt/mindsdb/agents/
 
-# Switch back to mindsdb user
-USER mindsdb
-
 # Expose port
 EXPOSE 47334
 
