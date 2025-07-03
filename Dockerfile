@@ -49,10 +49,6 @@ RUN --mount=type=ssh git clone git@github.com:Gerard161-Site/whale_alerts_handle
     cp -r /tmp/whale_alerts_handler /mindsdb/mindsdb/integrations/handlers/ && \
     pip install -e /mindsdb/mindsdb/integrations/handlers/whale_alerts_handler
 
-# Copy SQL and agents
-COPY sql/ /opt/mindsdb/sql/ 2>/dev/null || true
-COPY agents/ /opt/mindsdb/agents/ 2>/dev/null || true
-
 # Expose port
 EXPOSE 47334
 
