@@ -7,8 +7,8 @@ services:
   
   mindsdb:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: xplaincrypto-mindsdb/Dockerfile
     container_name: xplaincrypto-mindsdb
     environment:
       # Core MindsDB Configuration
