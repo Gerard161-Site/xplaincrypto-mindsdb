@@ -39,6 +39,9 @@ services:
       DUNE_API_KEY_FILE: /run/secrets/dune_api_key
       COINGECKO_API_KEY_FILE: /run/secrets/coingecko_api_key
       
+      # Storage Path
+      MINDSDB_STORAGE_PATH=/mindsdb/var
+      
     secrets:
       - postgres_password
       - redis_password
@@ -51,7 +54,7 @@ services:
       
     volumes:
       # Persistent MindsDB data
-      - mindsdb_data:/opt/mindsdb/var
+      - mindsdb_storage:/mindsdb/var
       
       # Custom handlers
       - ../mindsdb-handlers:/opt/mindsdb/handlers/custom:ro
@@ -63,11 +66,16 @@ services:
       - ./sql:/opt/mindsdb/sql:ro
       
       # Logs
-      - ./logs:/opt/mindsdb/logs
+      - mindsdb_logs:/var/log
+      
+      # Secrets mounting (read-only)
+      - ./secrets:/secrets:ro
       
     ports:
       - "47334:47334"  # MindsDB API
       - "47335:47335"  # MindsDB HTTP
+      - "47336:47336"
+      - "47337:47337"
       
     networks:
       - xplaincrypto_network
@@ -114,12 +122,18 @@ secrets:
 # ====================
 
 volumes:
-  mindsdb_data:
+  mindsdb_storage:
     driver: local
     driver_opts:
       type: none
       o: bind
       device: /var/lib/xplaincrypto/mindsdb
+      
+  handler_configs:
+    driver: local
+    
+  mindsdb_logs:
+    driver: local
 
 # ====================
 # NETWORKS - CONNECT TO EXISTING INFRASTRUCTURE
