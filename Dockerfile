@@ -59,6 +59,7 @@ RUN --mount=type=ssh git clone git@github.com:Gerard161-Site/whale_alerts_handle
     cd /mindsdb/mindsdb/integrations/handlers/whale_alerts_handler && \
     pip install -e .
 
+    
 # Copy SQL and agents
 COPY sql/ /opt/mindsdb/sql/
 COPY agents/ /opt/mindsdb/agents/
