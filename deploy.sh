@@ -38,23 +38,24 @@ print_status "PASS" "Network setup"
 
 # 4. Deploy containers
 print_status "INFO" "Deploying containers..."
-docker-compose down 2>/dev/null || true
-docker-compose up -d --build
-print_status "PASS" "Container deployment"
 
-# 5. Wait for MindsDB API
-print_status "INFO" "Waiting for MindsDB API..."
-timeout=120
-while [ $timeout -gt 0 ]; do
-    if curl -f -s http://localhost:47334/api/status >/dev/null 2>&1; then
-        print_status "PASS" "MindsDB API ready"
-        break
-    fi
-    echo "⏳ Waiting... ($timeout seconds remaining)"
-    sleep 5
-    timeout=$((timeout-5))
-done
-[ $timeout -le 0 ] && print_status "FAIL" "MindsDB API timeout"
+# Enable BuildKit and SSH forwarding
+export DOCKER_BUILDKIT=1
+
+# Build with SSH forwarding
+echo "🔨 Building with SSH..."
+docker build --ssh default --no-cache -t xplaincrypto-mindsdb-mindsdb .
+
+# Deploy
+echo "🚀 Starting containers..."
+docker-compose up -d --no-build
+
+# Wait and test
+echo "⏳ Waiting 120 seconds..."
+sleep 120
+
+curl -s http://localhost:47334/api/status
+echo "✅ Complete!"
 
 # 6. Initialize databases
 print_status "INFO" "Initializing databases and handlers..."

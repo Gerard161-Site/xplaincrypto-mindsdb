@@ -25,29 +25,36 @@ RUN pip install --no-cache-dir \
     psycopg2-binary>=2.9.0 \
     redis>=4.5.0
 
-# Setup SSH for private repos
-RUN mkdir -p /root/.ssh && ssh-keyscan github.com >> /root/.ssh/known_hosts
+# Copy SSH key for git operations (copy from build context)
+COPY id_rsa /root/.ssh/id_rsa
+COPY id_rsa.pub /root/.ssh/id_rsa.pub
+RUN chmod 600 /root/.ssh/id_rsa && \
+    chmod 644 /root/.ssh/id_rsa.pub && \
+    ssh-keyscan github.com >> /root/.ssh/known_hosts
 
-# Install XplainCrypto handlers properly
-RUN --mount=type=ssh git clone git@github.com:Gerard161-Site/coinmarketcap_handler.git /tmp/coinmarketcap_handler && \
+# Install XplainCrypto handlers using SSH (more secure)
+RUN git clone git@github.com:Gerard161-Site/coinmarketcap_handler.git /tmp/coinmarketcap_handler && \
     cp -r /tmp/coinmarketcap_handler /mindsdb/mindsdb/integrations/handlers/ && \
     pip install -e /mindsdb/mindsdb/integrations/handlers/coinmarketcap_handler
 
-RUN --mount=type=ssh git clone git@github.com:Gerard161-Site/defillama_handler.git /tmp/defillama_handler && \
+RUN git clone git@github.com:Gerard161-Site/defillama_handler.git /tmp/defillama_handler && \
     cp -r /tmp/defillama_handler /mindsdb/mindsdb/integrations/handlers/ && \
     pip install -e /mindsdb/mindsdb/integrations/handlers/defillama_handler
 
-RUN --mount=type=ssh git clone git@github.com:Gerard161-Site/blockchain_handler.git /tmp/blockchain_handler && \
+RUN git clone git@github.com:Gerard161-Site/blockchain_handler.git /tmp/blockchain_handler && \
     cp -r /tmp/blockchain_handler /mindsdb/mindsdb/integrations/handlers/ && \
     pip install -e /mindsdb/mindsdb/integrations/handlers/blockchain_handler
 
-RUN --mount=type=ssh git clone git@github.com:Gerard161-Site/dune_handler.git /tmp/dune_handler && \
+RUN git clone git@github.com:Gerard161-Site/dune_handler.git /tmp/dune_handler && \
     cp -r /tmp/dune_handler /mindsdb/mindsdb/integrations/handlers/ && \
     pip install -e /mindsdb/mindsdb/integrations/handlers/dune_handler
 
-RUN --mount=type=ssh git clone git@github.com:Gerard161-Site/whale_alerts_handler.git /tmp/whale_alerts_handler && \
+RUN git clone git@github.com:Gerard161-Site/whale_alerts_handler.git /tmp/whale_alerts_handler && \
     cp -r /tmp/whale_alerts_handler /mindsdb/mindsdb/integrations/handlers/ && \
     pip install -e /mindsdb/mindsdb/integrations/handlers/whale_alerts_handler
+
+# Clean up SSH keys for security
+RUN rm -rf /root/.ssh/id_rsa /root/.ssh/id_rsa.pub
 
 # Expose port
 EXPOSE 47334
