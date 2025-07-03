@@ -14,44 +14,35 @@ RUN apt-get update && apt-get install -y \
     python3-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements and install Python dependencies
+# Copy and install Python requirements
 COPY requirements.txt /tmp/
 RUN pip install --no-cache-dir -r /tmp/requirements.txt
 
-# Install additional dependencies for crypto handlers
+# Install additional crypto dependencies
 RUN pip install --no-cache-dir \
     web3>=6.0.0 \
     ccxt>=4.0.0 \
     python-binance>=1.0.17 \
     blockcypher>=1.0.93 \
     tweepy>=4.14.0 \
-    praw>=7.7.0
+    praw>=7.7.0 \
+    pandas>=2.0.0 \
+    numpy>=1.24.0 \
+    requests>=2.31.0 \
+    psycopg2-binary>=2.9.0 \
+    redis>=4.5.0
 
-# Copy custom handlers
-COPY --chown=mindsdb:mindsdb ../mindsdb-handlers/ /opt/mindsdb/handlers/custom/
+# Copy SQL initialization files
+COPY sql/ /opt/mindsdb/sql/
 
-# Copy agents
-COPY --chown=mindsdb:mindsdb agents/ /opt/mindsdb/agents/
-
-# Copy SQL scripts
-COPY --chown=mindsdb:mindsdb sql/ /opt/mindsdb/sql/
-
-# Create logs directory
-RUN mkdir -p /opt/mindsdb/logs && chown mindsdb:mindsdb /opt/mindsdb/logs
-
-# Copy startup script
-COPY scripts/start-mindsdb.sh /opt/mindsdb/start-mindsdb.sh
-RUN chmod +x /opt/mindsdb/start-mindsdb.sh
+# Copy agent definitions
+COPY agents/ /opt/mindsdb/agents/
 
 # Switch back to mindsdb user
 USER mindsdb
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=5 \
-    CMD curl -f http://localhost:47334/api/status || exit 1
+# Expose port
+EXPOSE 47334
 
-# Expose ports
-EXPOSE 47334 47335
-
-# Use custom startup script
-CMD ["/opt/mindsdb/start-mindsdb.sh"]
+# Start MindsDB
+CMD ["python", "-m", "mindsdb", "--api", "http", "--verbose"]

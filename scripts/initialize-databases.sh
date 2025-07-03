@@ -5,6 +5,16 @@
 
 set -e
 
+echo "🗄️ Initializing MindsDB databases and agents..."
+
+# Wait for MindsDB to be ready
+sleep 10
+
+# Run SQL initialization
+docker exec xplaincrypto-mindsdb mindsdb -f /opt/mindsdb/sql/init-all.sql
+
+echo "✅ Database initialization complete"
+
 echo "🗄️  MindsDB Database & Handler Initialization"
 echo "============================================="
 
