@@ -24,26 +24,21 @@ RUN pip install --no-cache-dir \
     psycopg2-binary>=2.9.0 \
     redis>=4.5.0
 
-# Install XplainCrypto handlers via HTTPS (simple and clean)
+# Install XplainCrypto handlers (just copy, no pip install needed)
 RUN git clone https://github.com/Gerard161-Site/coinmarketcap_handler.git /tmp/coinmarketcap_handler && \
-    cp -r /tmp/coinmarketcap_handler /mindsdb/mindsdb/integrations/handlers/ && \
-    pip install -e /mindsdb/mindsdb/integrations/handlers/coinmarketcap_handler
+    cp -r /tmp/coinmarketcap_handler /mindsdb/mindsdb/integrations/handlers/
 
 RUN git clone https://github.com/Gerard161-Site/defillama_handler.git /tmp/defillama_handler && \
-    cp -r /tmp/defillama_handler /mindsdb/mindsdb/integrations/handlers/ && \
-    pip install -e /mindsdb/mindsdb/integrations/handlers/defillama_handler
+    cp -r /tmp/defillama_handler /mindsdb/mindsdb/integrations/handlers/
 
 RUN git clone https://github.com/Gerard161-Site/blockchain_handler.git /tmp/blockchain_handler && \
-    cp -r /tmp/blockchain_handler /mindsdb/mindsdb/integrations/handlers/ && \
-    pip install -e /mindsdb/mindsdb/integrations/handlers/blockchain_handler
+    cp -r /tmp/blockchain_handler /mindsdb/mindsdb/integrations/handlers/
 
 RUN git clone https://github.com/Gerard161-Site/dune_handler.git /tmp/dune_handler && \
-    cp -r /tmp/dune_handler /mindsdb/mindsdb/integrations/handlers/ && \
-    pip install -e /mindsdb/mindsdb/integrations/handlers/dune_handler
+    cp -r /tmp/dune_handler /mindsdb/mindsdb/integrations/handlers/
 
 RUN git clone https://github.com/Gerard161-Site/whale_alerts_handler.git /tmp/whale_alerts_handler && \
-    cp -r /tmp/whale_alerts_handler /mindsdb/mindsdb/integrations/handlers/ && \
-    pip install -e /mindsdb/mindsdb/integrations/handlers/whale_alerts_handler
+    cp -r /tmp/whale_alerts_handler /mindsdb/mindsdb/integrations/handlers/
 
 # Expose port
 EXPOSE 47334
