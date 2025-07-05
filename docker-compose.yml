@@ -14,12 +14,11 @@ services:
       - "47336:47336"
       - "47337:47337"
     volumes:
-      # Critical: MindsDB storage persistence
-      - mindsdb_storage:/mindsdb/var
+      # Critical: MindsDB storage persistence - FIXED PATH
+      - mindsdb_storage:/root/mdb_storage
       # Secrets mounting (read-only)
       - ./secrets:/run/secrets:ro
     environment:
-      - MINDSDB_STORAGE_PATH=/mindsdb/var
       - PYTHONUNBUFFERED=1
       # Use existing shared Redis
       - REDIS_HOST=xplaincrypto-redis
@@ -102,7 +101,10 @@ volumes:
       
   postgres_crypto_data:
     driver: local
-    name: xplaincrypto_postgres_crypto_data
+    driver_opts:
+      type: none
+      o: bind
+      device: /var/lib/xplaincrypto/postgres-crypto
 
 # ====================
 # NETWORKS - CONNECT TO EXISTING INFRASTRUCTURE
