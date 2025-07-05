@@ -11,7 +11,7 @@ RUN pip install --no-cache-dir \
     pycoingecko \
     coinmarketcapapi \
     dune-client \
-    web3>=6.0.0 ccxt>=4.0.0 python-binance>=1.0.17 pandas>=2.0.0 requests>=2.31.0 psycopg2-binary>=2.9.0 redis>=4.5.0
+    web3>=6.0.0 ccxt>=4.0.0 python-binance>=1.0.17 pandas>=2.0.0 requests>=2.31.0 psycopg2-binary>=2.9.0 redis>=4.5.0 nixtla==0.6.6
 
 # 1. CoinMarketCap Handler
 RUN git clone https://github.com/Gerard161-Site/coinmarketcap_handler.git && \
