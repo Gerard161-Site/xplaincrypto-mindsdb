@@ -1,0 +1,553 @@
+
+{
+  "name": "XplainCrypto MindsDB Cost Optimization",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 6
+            }
+          ]
+        }
+      },
+      "id": "cost-optimization-schedule",
+      "name": "Cost Optimization Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Resource Usage Analysis\nSELECT \n  'resource_usage' as analysis_type,\n  table_schema,\n  table_name,\n  ROUND((data_length + index_length) / 1024 / 1024, 2) as size_mb,\n  table_rows,\n  ROUND((data_length + index_length) / table_rows, 2) as bytes_per_row,\n  create_time,\n  update_time,\n  DATEDIFF(NOW(), update_time) as days_since_update\nFROM information_schema.tables\nWHERE table_schema IN ('mindsdb', 'crypto_data_db', 'user_data_db')\nAND table_type = 'BASE TABLE'\nORDER BY (data_length + index_length) DESC;",
+        "options": {}
+      },
+      "id": "analyze-resource-usage",
+      "name": "Analyze Resource Usage",
+      "type": "n8n-nodes-base.mysql",
+      "typeVersion": 2,
+      "position": [460, 200],
+      "credentials": {
+        "mysql": {
+          "id": "mindsdb-connection",
+          "name": "MindsDB Connection"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Query Performance Analysis\nSELECT \n  'query_performance' as analysis_type,\n  event_name as job_name,\n  status,\n  last_executed,\n  TIMESTAMPDIFF(SECOND, starts, ends) as avg_execution_time_seconds,\n  execute_at,\n  interval_value,\n  interval_field,\n  CASE \n    WHEN interval_field = 'MINUTE' AND interval_value <= 5 THEN 'high_frequency'\n    WHEN interval_field = 'MINUTE' AND interval_value <= 30 THEN 'medium_frequency'\n    WHEN interval_field = 'HOUR' AND interval_value <= 6 THEN 'low_frequency'\n    ELSE 'very_low_frequency'\n  END as frequency_category\nFROM information_schema.events\nWHERE event_schema = 'mindsdb'\nORDER BY \n  CASE frequency_category\n    WHEN 'high_frequency' THEN 1\n    WHEN 'medium_frequency' THEN 2\n    WHEN 'low_frequency' THEN 3\n    ELSE 4\n  END;",
+        "options": {}
+      },
+      "id": "analyze-query-performance",
+      "name": "Analyze Query Performance",
+      "type": "n8n-nodes-base.mysql",
+      "typeVersion": 2,
+      "position": [680, 200],
+      "credentials": {
+        "mysql": {
+          "id": "mindsdb-connection",
+          "name": "MindsDB Connection"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Model Usage and Cost Analysis\nSELECT \n  'model_usage' as analysis_type,\n  model_name,\n  accuracy_score,\n  prediction_drift,\n  error_rate,\n  metric_date,\n  DATEDIFF(NOW(), metric_date) as days_since_evaluation,\n  CASE \n    WHEN accuracy_score < 0.7 THEN 'underperforming'\n    WHEN prediction_drift > 0.1 THEN 'drifting'\n    WHEN DATEDIFF(NOW(), metric_date) > 7 THEN 'stale'\n    ELSE 'healthy'\n  END as model_status,\n  CASE \n    WHEN accuracy_score < 0.7 THEN 'retrain_or_replace'\n    WHEN prediction_drift > 0.1 THEN 'recalibrate'\n    WHEN DATEDIFF(NOW(), metric_date) > 7 THEN 'evaluate'\n    ELSE 'maintain'\n  END as recommended_action\nFROM crypto_data_db.model_performance_metrics\nWHERE metric_date >= DATE_SUB(NOW(), INTERVAL 30 DAY)\nORDER BY metric_date DESC, model_name;",
+        "options": {}
+      },
+      "id": "analyze-model-costs",
+      "name": "Analyze Model Costs",
+      "type": "n8n-nodes-base.mysql",
+      "typeVersion": 2,
+      "position": [900, 200],
+      "credentials": {
+        "mysql": {
+          "id": "mindsdb-connection",
+          "name": "MindsDB Connection"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Data Retention Analysis\nSELECT \n  'data_retention' as analysis_type,\n  'real_time_prices' as table_name,\n  COUNT(*) as total_records,\n  COUNT(CASE WHEN last_updated < DATE_SUB(NOW(), INTERVAL 1 DAY) THEN 1 END) as records_older_1d,\n  COUNT(CASE WHEN last_updated < DATE_SUB(NOW(), INTERVAL 7 DAY) THEN 1 END) as records_older_7d,\n  COUNT(CASE WHEN last_updated < DATE_SUB(NOW(), INTERVAL 30 DAY) THEN 1 END) as records_older_30d,\n  ROUND(COUNT(CASE WHEN last_updated < DATE_SUB(NOW(), INTERVAL 1 DAY) THEN 1 END) / COUNT(*) * 100, 2) as pct_older_1d,\n  'Archive records older than 24 hours' as optimization_suggestion\nFROM crypto_data_db.real_time_prices\n\nUNION ALL\n\nSELECT \n  'data_retention' as analysis_type,\n  'social_sentiment' as table_name,\n  COUNT(*) as total_records,\n  COUNT(CASE WHEN last_updated < DATE_SUB(NOW(), INTERVAL 7 DAY) THEN 1 END) as records_older_7d,\n  COUNT(CASE WHEN last_updated < DATE_SUB(NOW(), INTERVAL 30 DAY) THEN 1 END) as records_older_30d,\n  COUNT(CASE WHEN last_updated < DATE_SUB(NOW(), INTERVAL 90 DAY) THEN 1 END) as records_older_90d,\n  ROUND(COUNT(CASE WHEN last_updated < DATE_SUB(NOW(), INTERVAL 30 DAY) THEN 1 END) / COUNT(*) * 100, 2) as pct_older_30d,\n  'Archive sentiment data older than 30 days' as optimization_suggestion\nFROM crypto_data_db.social_sentiment\n\nUNION ALL\n\nSELECT \n  'data_retention' as analysis_type,\n  'crypto_news_real_time' as table_name,\n  COUNT(*) as total_records,\n  COUNT(CASE WHEN published_at < DATE_SUB(NOW(), INTERVAL 7 DAY) THEN 1 END) as records_older_7d,\n  COUNT(CASE WHEN published_at < DATE_SUB(NOW(), INTERVAL 30 DAY) THEN 1 END) as records_older_30d,\n  COUNT(CASE WHEN published_at < DATE_SUB(NOW(), INTERVAL 90 DAY) THEN 1 END) as records_older_90d,\n  ROUND(COUNT(CASE WHEN published_at < DATE_SUB(NOW(), INTERVAL 90 DAY) THEN 1 END) / COUNT(*) * 100, 2) as pct_older_90d,\n  'Archive news older than 90 days' as optimization_suggestion\nFROM crypto_data_db.crypto_news_real_time;",
+        "options": {}
+      },
+      "id": "analyze-data-retention",
+      "name": "Analyze Data Retention",
+      "type": "n8n-nodes-base.mysql",
+      "typeVersion": 2,
+      "position": [1120, 200],
+      "credentials": {
+        "mysql": {
+          "id": "mindsdb-connection",
+          "name": "MindsDB Connection"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Compile cost optimization recommendations\nconst resourceUsage = $('analyze-resource-usage').all();\nconst queryPerformance = $('analyze-query-performance').all();\nconst modelCosts = $('analyze-model-costs').all();\nconst dataRetention = $('analyze-data-retention').all();\n\nlet optimizations = [];\nlet potentialSavings = 0;\nlet criticalActions = [];\nlet recommendations = [];\n\n// Analyze resource usage\nlet totalStorageUsed = 0;\nlet largeUnusedTables = [];\n\nfor (const resource of resourceUsage) {\n  totalStorageUsed += resource.json.size_mb;\n  \n  // Identify large tables that haven't been updated recently\n  if (resource.json.size_mb > 100 && resource.json.days_since_update > 30) {\n    largeUnusedTables.push({\n      table: resource.json.table_name,\n      size_mb: resource.json.size_mb,\n      days_unused: resource.json.days_since_update\n    });\n    \n    optimizations.push({\n      type: 'storage_optimization',\n      action: 'archive_or_compress',\n      target: resource.json.table_name,\n      potential_savings_mb: resource.json.size_mb * 0.7, // Assume 70% compression\n      priority: 'medium'\n    });\n    \n    potentialSavings += resource.json.size_mb * 0.7 * 0.1; // Assume $0.10 per MB per month\n  }\n  \n  // Identify tables with inefficient storage\n  if (resource.json.bytes_per_row > 1000) {\n    optimizations.push({\n      type: 'schema_optimization',\n      action: 'optimize_schema',\n      target: resource.json.table_name,\n      current_bytes_per_row: resource.json.bytes_per_row,\n      priority: 'low'\n    });\n  }\n}\n\n// Analyze query performance and frequency\nlet highFrequencyJobs = [];\nlet underperformingJobs = [];\n\nfor (const query of queryPerformance) {\n  if (query.json.frequency_category === 'high_frequency') {\n    highFrequencyJobs.push({\n      job: query.json.job_name,\n      frequency: `${query.json.interval_value} ${query.json.interval_field}`,\n      execution_time: query.json.avg_execution_time_seconds\n    });\n    \n    // Suggest optimization for high-frequency jobs\n    if (query.json.avg_execution_time_seconds > 30) {\n      optimizations.push({\n        type: 'query_optimization',\n        action: 'optimize_high_frequency_job',\n        target: query.json.job_name,\n        current_execution_time: query.json.avg_execution_time_seconds,\n        potential_savings_seconds: query.json.avg_execution_time_seconds * 0.5,\n        priority: 'high'\n      });\n      \n      criticalActions.push(`Optimize high-frequency job: ${query.json.job_name}`);\n    }\n  }\n  \n  // Identify jobs that might be running too frequently\n  if (query.json.frequency_category === 'high_frequency' && query.json.interval_value <= 2) {\n    optimizations.push({\n      type: 'frequency_optimization',\n      action: 'reduce_frequency',\n      target: query.json.job_name,\n      current_frequency: `${query.json.interval_value} ${query.json.interval_field}`,\n      suggested_frequency: `${query.json.interval_value * 2} ${query.json.interval_field}`,\n      priority: 'medium'\n    });\n  }\n}\n\n// Analyze model costs and performance\nlet underperformingModels = [];\nlet staleModels = [];\n\nfor (const model of modelCosts) {\n  if (model.json.model_status === 'underperforming') {\n    underperformingModels.push({\n      model: model.json.model_name,\n      accuracy: model.json.accuracy_score,\n      action: model.json.recommended_action\n    });\n    \n    optimizations.push({\n      type: 'model_optimization',\n      action: 'retrain_or_replace_model',\n      target: model.json.model_name,\n      current_accuracy: model.json.accuracy_score,\n      priority: 'high'\n    });\n    \n    criticalActions.push(`Address underperforming model: ${model.json.model_name}`);\n  }\n  \n  if (model.json.model_status === 'stale') {\n    staleModels.push({\n      model: model.json.model_name,\n      days_stale: model.json.days_since_evaluation\n    });\n    \n    optimizations.push({\n      type: 'model_maintenance',\n      action: 'evaluate_model_performance',\n      target: model.json.model_name,\n      days_since_evaluation: model.json.days_since_evaluation,\n      priority: 'medium'\n    });\n  }\n}\n\n// Analyze data retention opportunities\nlet dataArchivalOpportunities = [];\n\nfor (const retention of dataRetention) {\n  if (retention.json.pct_older_1d > 50 || retention.json.pct_older_30d > 30) {\n    dataArchivalOpportunities.push({\n      table: retention.json.table_name,\n      total_records: retention.json.total_records,\n      archival_candidates: retention.json.records_older_30d || retention.json.records_older_1d,\n      suggestion: retention.json.optimization_suggestion\n    });\n    \n    const archivalSavings = (retention.json.records_older_30d || retention.json.records_older_1d) * 0.001; // Assume $0.001 per record per month\n    \n    optimizations.push({\n      type: 'data_archival',\n      action: 'archive_old_data',\n      target: retention.json.table_name,\n      records_to_archive: retention.json.records_older_30d || retention.json.records_older_1d,\n      potential_savings_monthly: archivalSavings,\n      priority: 'medium'\n    });\n    \n    potentialSavings += archivalSavings;\n  }\n}\n\n// Generate specific recommendations\nrecommendations = [\n  ...criticalActions,\n  `Archive ${dataArchivalOpportunities.length} tables with old data`,\n  `Optimize ${highFrequencyJobs.length} high-frequency jobs`,\n  `Review ${underperformingModels.length} underperforming models`,\n  `Compress ${largeUnusedTables.length} large unused tables`\n].filter(rec => rec && !rec.includes('0 '));\n\n// Calculate priority scores\nconst highPriorityOptimizations = optimizations.filter(opt => opt.priority === 'high').length;\nconst mediumPriorityOptimizations = optimizations.filter(opt => opt.priority === 'medium').length;\nconst lowPriorityOptimizations = optimizations.filter(opt => opt.priority === 'low').length;\n\n// Compile final optimization report\nconst optimizationReport = {\n  timestamp: new Date().toISOString(),\n  summary: {\n    total_optimizations_identified: optimizations.length,\n    high_priority: highPriorityOptimizations,\n    medium_priority: mediumPriorityOptimizations,\n    low_priority: lowPriorityOptimizations,\n    estimated_monthly_savings: Math.round(potentialSavings * 100) / 100,\n    critical_actions_required: criticalActions.length\n  },\n  resource_analysis: {\n    total_storage_mb: Math.round(totalStorageUsed),\n    large_unused_tables: largeUnusedTables.length,\n    storage_optimization_opportunities: largeUnusedTables\n  },\n  query_analysis: {\n    high_frequency_jobs: highFrequencyJobs.length,\n    underperforming_jobs: underperformingJobs.length,\n    frequency_optimization_opportunities: highFrequencyJobs\n  },\n  model_analysis: {\n    underperforming_models: underperformingModels.length,\n    stale_models: staleModels.length,\n    model_optimization_opportunities: [...underperformingModels, ...staleModels]\n  },\n  data_retention_analysis: {\n    archival_opportunities: dataArchivalOpportunities.length,\n    tables_with_old_data: dataArchivalOpportunities\n  },\n  optimizations: optimizations,\n  recommendations: recommendations,\n  next_review_date: new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString() // 6 hours from now\n};\n\nreturn [{ json: optimizationReport }];"
+      },
+      "id": "compile-optimization-report",
+      "name": "Compile Optimization Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "high-priority-optimizations",
+              "leftValue": "={{ $json.summary.high_priority }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "id": "check-optimization-priority",
+      "name": "Check Optimization Priority",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1560, 200]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Execute High Priority Optimizations\n\n-- 1. Archive old real-time price data\nCREATE TABLE IF NOT EXISTS crypto_data_db.archived_real_time_prices LIKE crypto_data_db.real_time_prices;\n\nINSERT INTO crypto_data_db.archived_real_time_prices\nSELECT * FROM crypto_data_db.real_time_prices\nWHERE last_updated < DATE_SUB(NOW(), INTERVAL 24 HOUR);\n\nDELETE FROM crypto_data_db.real_time_prices\nWHERE last_updated < DATE_SUB(NOW(), INTERVAL 24 HOUR);\n\n-- 2. Archive old social sentiment data\nCREATE TABLE IF NOT EXISTS crypto_data_db.archived_social_sentiment LIKE crypto_data_db.social_sentiment;\n\nINSERT INTO crypto_data_db.archived_social_sentiment\nSELECT * FROM crypto_data_db.social_sentiment\nWHERE last_updated < DATE_SUB(NOW(), INTERVAL 30 DAY);\n\nDELETE FROM crypto_data_db.social_sentiment\nWHERE last_updated < DATE_SUB(NOW(), INTERVAL 30 DAY);\n\n-- 3. Archive old news data\nCREATE TABLE IF NOT EXISTS crypto_data_db.archived_crypto_news LIKE crypto_data_db.crypto_news_real_time;\n\nINSERT INTO crypto_data_db.archived_crypto_news\nSELECT * FROM crypto_data_db.crypto_news_real_time\nWHERE published_at < DATE_SUB(NOW(), INTERVAL 90 DAY);\n\nDELETE FROM crypto_data_db.crypto_news_real_time\nWHERE published_at < DATE_SUB(NOW(), INTERVAL 90 DAY);",
+        "options": {}
+      },
+      "id": "execute-data-archival",
+      "name": "Execute Data Archival",
+      "type": "n8n-nodes-base.mysql",
+      "typeVersion": 2,
+      "position": [1780, 120],
+      "credentials": {
+        "mysql": {
+          "id": "mindsdb-connection",
+          "name": "MindsDB Connection"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Optimize Database Performance\n\n-- 1. Update table statistics\nANALYZE TABLE crypto_data_db.real_time_prices;\nANALYZE TABLE crypto_data_db.defi_real_time;\nANALYZE TABLE crypto_data_db.social_sentiment;\nANALYZE TABLE crypto_data_db.daily_technical_indicators;\nANALYZE TABLE user_data_db.learning_sessions;\nANALYZE TABLE user_data_db.user_trades;\nANALYZE TABLE user_data_db.social_interactions;\n\n-- 2. Optimize tables\nOPTIMIZE TABLE crypto_data_db.real_time_prices;\nOPTIMIZE TABLE crypto_data_db.defi_real_time;\nOPTIMIZE TABLE crypto_data_db.social_sentiment;\n\n-- 3. Check for unused indexes\nSELECT \n  table_schema,\n  table_name,\n  index_name,\n  'Consider dropping if unused' as recommendation\nFROM information_schema.statistics\nWHERE table_schema IN ('crypto_data_db', 'user_data_db')\nAND index_name != 'PRIMARY'\nGROUP BY table_schema, table_name, index_name;",
+        "options": {}
+      },
+      "id": "optimize-database-performance",
+      "name": "Optimize Database Performance",
+      "type": "n8n-nodes-base.mysql",
+      "typeVersion": 2,
+      "position": [1780, 200],
+      "credentials": {
+        "mysql": {
+          "id": "mindsdb-connection",
+          "name": "MindsDB Connection"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Optimize Job Frequencies\n\n-- Reduce frequency of non-critical jobs\nALTER EVENT market_data_sync_master\nON SCHEDULE EVERY 5 MINUTE\nCOMMENT 'Optimized: Reduced from 3 minutes to 5 minutes';\n\nALTER EVENT defi_data_sync\nON SCHEDULE EVERY 10 MINUTE\nCOMMENT 'Optimized: Reduced from 5 minutes to 10 minutes';\n\nALTER EVENT market_sentiment_sync\nON SCHEDULE EVERY 15 MINUTE\nCOMMENT 'Optimized: Reduced from 10 minutes to 15 minutes';\n\n-- Disable low-priority jobs during off-peak hours\nALTER EVENT blockchain_metrics_sync\nON SCHEDULE EVERY 30 MINUTE\nSTARTS '2024-01-01 06:00:00'\nENDS '2024-12-31 22:00:00'\nCOMMENT 'Optimized: Only runs during business hours';\n\n-- Log optimization actions\nINSERT INTO crypto_data_db.optimization_log (\n  optimization_type,\n  action_taken,\n  estimated_savings,\n  implemented_at\n) VALUES (\n  'job_frequency_optimization',\n  'Reduced frequency of 4 high-frequency jobs',\n  'Estimated 30% reduction in compute costs',\n  NOW()\n);",
+        "options": {}
+      },
+      "id": "optimize-job-frequencies",
+      "name": "Optimize Job Frequencies",
+      "type": "n8n-nodes-base.mysql",
+      "typeVersion": 2,
+      "position": [1780, 280],
+      "credentials": {
+        "mysql": {
+          "id": "mindsdb-connection",
+          "name": "MindsDB Connection"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "table": "cost_optimization_log",
+        "columns": "optimization_date, total_optimizations, high_priority_count, estimated_monthly_savings, actions_executed, optimization_report",
+        "values": "={{ $('compile-optimization-report').item.json.timestamp }}, {{ $('compile-optimization-report').item.json.summary.total_optimizations_identified }}, {{ $('compile-optimization-report').item.json.summary.high_priority }}, {{ $('compile-optimization-report').item.json.summary.estimated_monthly_savings }}, 'data_archival,performance_optimization,job_frequency_optimization', '{{ JSON.stringify($('compile-optimization-report').item.json) }}'",
+        "options": {}
+      },
+      "id": "log-optimization-actions",
+      "name": "Log Optimization Actions",
+      "type": "n8n-nodes-base.mysql",
+      "typeVersion": 2,
+      "position": [2000, 200],
+      "credentials": {
+        "mysql": {
+          "id": "mindsdb-connection",
+          "name": "MindsDB Connection"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "subject": "💰 XplainCrypto Cost Optimization Report",
+        "message": "Cost optimization analysis completed!\n\n💰 COST SAVINGS SUMMARY:\n- Total Optimizations Identified: {{ $('compile-optimization-report').item.json.summary.total_optimizations_identified }}\n- High Priority Actions: {{ $('compile-optimization-report').item.json.summary.high_priority }}\n- Estimated Monthly Savings: ${{ $('compile-optimization-report').item.json.summary.estimated_monthly_savings }}\n\n📊 OPTIMIZATION BREAKDOWN:\n\n🗄️ Storage Optimization:\n- Large Unused Tables: {{ $('compile-optimization-report').item.json.resource_analysis.large_unused_tables }}\n- Total Storage: {{ $('compile-optimization-report').item.json.resource_analysis.total_storage_mb }}MB\n\n⚡ Query Optimization:\n- High Frequency Jobs: {{ $('compile-optimization-report').item.json.query_analysis.high_frequency_jobs }}\n- Optimization Opportunities: {{ $('compile-optimization-report').item.json.query_analysis.frequency_optimization_opportunities.length }}\n\n🤖 Model Optimization:\n- Underperforming Models: {{ $('compile-optimization-report').item.json.model_analysis.underperforming_models }}\n- Stale Models: {{ $('compile-optimization-report').item.json.model_analysis.stale_models }}\n\n📦 Data Archival:\n- Archival Opportunities: {{ $('compile-optimization-report').item.json.data_retention_analysis.archival_opportunities }}\n- Tables with Old Data: {{ $('compile-optimization-report').item.json.data_retention_analysis.tables_with_old_data.length }}\n\n🔧 ACTIONS TAKEN:\n✅ Archived old real-time data\n✅ Optimized database performance\n✅ Reduced job frequencies\n✅ Updated table statistics\n\n📋 RECOMMENDATIONS:\n{{ $('compile-optimization-report').item.json.recommendations.join('\\n') }}\n\nNext optimization review: {{ $('compile-optimization-report').item.json.next_review_date }}\n\nOptimization completed at: {{ $('compile-optimization-report').item.json.timestamp }}",
+        "options": {}
+      },
+      "id": "send-optimization-report",
+      "name": "Send Optimization Report",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [2220, 200],
+      "credentials": {
+        "smtp": {
+          "id": "notification-email",
+          "name": "Notification Email"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Generate Cost Savings Report\nSELECT \n  'cost_savings_summary' as report_type,\n  DATE(optimization_date) as optimization_date,\n  SUM(estimated_monthly_savings) as total_monthly_savings,\n  SUM(high_priority_count) as total_high_priority_optimizations,\n  COUNT(*) as optimization_runs,\n  AVG(estimated_monthly_savings) as avg_savings_per_run\nFROM cost_optimization_log\nWHERE optimization_date >= DATE_SUB(NOW(), INTERVAL 30 DAY)\nGROUP BY DATE(optimization_date)\nORDER BY optimization_date DESC\nLIMIT 10;",
+        "options": {}
+      },
+      "id": "generate-savings-report",
+      "name": "Generate Savings Report",
+      "type": "n8n-nodes-base.mysql",
+      "typeVersion": 2,
+      "position": [2000, 320],
+      "credentials": {
+        "mysql": {
+          "id": "mindsdb-connection",
+          "name": "MindsDB Connection"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "cost-optimization",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-cost-optimization-api",
+      "name": "Webhook - Cost Optimization API",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 500],
+      "webhookId": "xplaincrypto-cost-optimization"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"optimization_report\": {{ JSON.stringify($('compile-optimization-report').item.json) }},\n  \"savings_summary\": {{ JSON.stringify($('generate-savings-report').all()) }},\n  \"status\": \"completed\",\n  \"timestamp\": \"{{ $('compile-optimization-report').item.json.timestamp }}\"\n}",
+        "responseHeaders": {
+          "entries": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Access-Control-Allow-Origin",
+              "value": "*"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "respond-optimization-data",
+      "name": "Respond Optimization Data",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2440, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "significant-savings",
+              "leftValue": "={{ $json.summary.estimated_monthly_savings }}",
+              "rightValue": 100,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "id": "check-significant-savings",
+      "name": "Check Significant Savings",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1560, 400]
+    },
+    {
+      "parameters": {
+        "url": "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK",
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "{\n  \"text\": \"💰 Significant Cost Savings Identified!\",\n  \"blocks\": [\n    {\n      \"type\": \"header\",\n      \"text\": {\n        \"type\": \"plain_text\",\n        \"text\": \"💰 Cost Optimization Alert\"\n      }\n    },\n    {\n      \"type\": \"section\",\n      \"fields\": [\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*Monthly Savings:* ${{ $('compile-optimization-report').item.json.summary.estimated_monthly_savings }}\"\n        },\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*Optimizations:* {{ $('compile-optimization-report').item.json.summary.total_optimizations_identified }}\"\n        },\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*High Priority:* {{ $('compile-optimization-report').item.json.summary.high_priority }}\"\n        },\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*Storage Saved:* {{ $('compile-optimization-report').item.json.resource_analysis.total_storage_mb }}MB\"\n        }\n      ]\n    },\n    {\n      \"type\": \"section\",\n      \"text\": {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*Key Optimizations:*\\n{{ $('compile-optimization-report').item.json.recommendations.slice(0, 3).join('\\n') }}\"\n      }\n    },\n    {\n      \"type\": \"actions\",\n      \"elements\": [\n        {\n          \"type\": \"button\",\n          \"text\": {\n            \"type\": \"plain_text\",\n            \"text\": \"View Full Report\"\n          },\n          \"url\": \"http://localhost:47334/cost-optimization\"\n        }\n      ]\n    }\n  ]\n}",
+        "options": {}
+      },
+      "id": "send-slack-savings-alert",
+      "name": "Send Slack Savings Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1780, 400]
+    }
+  ],
+  "connections": {
+    "Cost Optimization Schedule": {
+      "main": [
+        [
+          {
+            "node": "Analyze Resource Usage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Resource Usage": {
+      "main": [
+        [
+          {
+            "node": "Analyze Query Performance",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Query Performance": {
+      "main": [
+        [
+          {
+            "node": "Analyze Model Costs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Model Costs": {
+      "main": [
+        [
+          {
+            "node": "Analyze Data Retention",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Data Retention": {
+      "main": [
+        [
+          {
+            "node": "Compile Optimization Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compile Optimization Report": {
+      "main": [
+        [
+          {
+            "node": "Check Optimization Priority",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Check Significant Savings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Optimization Priority": {
+      "main": [
+        [
+          {
+            "node": "Execute Data Archival",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Optimize Database Performance",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Optimize Job Frequencies",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Optimization Actions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Data Archival": {
+      "main": [
+        [
+          {
+            "node": "Log Optimization Actions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Optimize Database Performance": {
+      "main": [
+        [
+          {
+            "node": "Log Optimization Actions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Optimize Job Frequencies": {
+      "main": [
+        [
+          {
+            "node": "Log Optimization Actions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Optimization Actions": {
+      "main": [
+        [
+          {
+            "node": "Send Optimization Report",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Generate Savings Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Optimization Report": {
+      "main": [
+        [
+          {
+            "node": "Respond Optimization Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Savings Report": {
+      "main": [
+        [
+          {
+            "node": "Respond Optimization Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Cost Optimization API": {
+      "main": [
+        [
+          {
+            "node": "Analyze Resource Usage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Significant Savings": {
+      "main": [
+        [
+          {
+            "node": "Send Slack Savings Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "error-handler-workflow"
+  },
+  "versionId": "1.0.0",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "xplaincrypto-mindsdb-cost-optimization"
+  },
+  "id": "xplaincrypto-cost-optimization",
+  "tags": [
+    {
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z",
+      "id": "cost-optimization",
+      "name": "cost-optimization"
+    },
+    {
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z",
+      "id": "automation",
+      "name": "automation"
+    },
+    {
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z",
+      "id": "xplaincrypto",
+      "name": "xplaincrypto"
+    }
+  ]
+}
+

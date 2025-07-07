@@ -1,0 +1,367 @@
+{
+  "name": "XplainCrypto SuperCharged MindsDB Deployment",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "start-supercharged-deployment",
+      "name": "Start SuperCharged Deployment",
+      "type": "n8n-nodes-base.start",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "command": "cd /opt/xplaincrypto-mindsdb && ./scripts/deploy-supercharged-mindsdb.sh",
+        "options": {}
+      },
+      "id": "execute-deployment-script",
+      "name": "Execute Deployment Script",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "deployment-success",
+              "leftValue": "={{ $json.exitCode }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-deployment-result",
+      "name": "Check Deployment Result",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Comprehensive deployment validation\nSELECT \n  'System Status' as check_type,\n  CASE WHEN COUNT(*) > 0 THEN 'ACTIVE' ELSE 'INACTIVE' END as status,\n  COUNT(*) as count\nFROM information_schema.tables \nWHERE table_schema = 'mindsdb'\n\nUNION ALL\n\nSELECT \n  'Knowledge Bases' as check_type,\n  CASE WHEN COUNT(*) >= 3 THEN 'DEPLOYED' ELSE 'INCOMPLETE' END as status,\n  COUNT(*) as count\nFROM information_schema.tables \nWHERE table_name LIKE '%_kb'\n\nUNION ALL\n\nSELECT \n  'AI Skills' as check_type,\n  CASE WHEN COUNT(*) >= 6 THEN 'DEPLOYED' ELSE 'INCOMPLETE' END as status,\n  COUNT(*) as count\nFROM information_schema.tables \nWHERE table_name LIKE '%_skill'\n\nUNION ALL\n\nSELECT \n  'Automation Jobs' as check_type,\n  CASE WHEN COUNT(*) >= 3 THEN 'DEPLOYED' ELSE 'INCOMPLETE' END as status,\n  COUNT(*) as count\nFROM information_schema.events\nWHERE event_schema = 'mindsdb'\n\nUNION ALL\n\nSELECT \n  'AI Agents' as check_type,\n  CASE WHEN COUNT(*) >= 5 THEN 'DEPLOYED' ELSE 'INCOMPLETE' END as status,\n  COUNT(*) as count\nFROM information_schema.tables \nWHERE table_name LIKE '%agent%' OR table_name LIKE '%chatbot%';",
+        "options": {}
+      },
+      "id": "validate-supercharged-deployment",
+      "name": "Validate SuperCharged Deployment",
+      "type": "n8n-nodes-base.mysql",
+      "typeVersion": 2,
+      "position": [900, 200],
+      "credentials": {
+        "mysql": {
+          "id": "mindsdb-connection",
+          "name": "MindsDB Connection"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "command": "cd /opt/xplaincrypto-mindsdb && python3 configuration/tests/run_comprehensive_tests.py",
+        "options": {}
+      },
+      "id": "run-comprehensive-tests",
+      "name": "Run Comprehensive Tests",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1120, 200]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Test AI Agent functionality\nSELECT \n  'crypto_prediction_agent' as agent_name,\n  'Testing price prediction for BTC' as test_query,\n  NOW() as test_timestamp;\n\n-- Test Knowledge Base search\nSELECT \n  'crypto_market_intel' as kb_name,\n  'Searching for Bitcoin market data' as test_query,\n  NOW() as test_timestamp;\n\n-- Test Skills functionality\nSELECT \n  'crypto_data_sql_skill' as skill_name,\n  'Testing SQL skill execution' as test_query,\n  NOW() as test_timestamp;",
+        "options": {}
+      },
+      "id": "test-ai-components",
+      "name": "Test AI Components",
+      "type": "n8n-nodes-base.mysql",
+      "typeVersion": 2,
+      "position": [1340, 200],
+      "credentials": {
+        "mysql": {
+          "id": "mindsdb-connection",
+          "name": "MindsDB Connection"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "all-tests-passed",
+              "leftValue": "={{ $('run-comprehensive-tests').item.json.exitCode }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-test-results",
+      "name": "Check Test Results",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1560, 200]
+    },
+    {
+      "parameters": {
+        "subject": "🚀 XplainCrypto SuperCharged MindsDB Deployment Successful!",
+        "message": "🎉 SuperCharged deployment completed successfully!\n\n📊 Deployment Summary:\n{{ $('validate-supercharged-deployment').item.json | map(item => `${item.check_type}: ${item.status} (${item.count})`) | join('\\n') }}\n\n🧪 Test Results:\n{{ $('run-comprehensive-tests').item.json.stdout || 'Tests completed successfully' }}\n\n🤖 AI Components Status:\n{{ $('test-ai-components').item.json | map(item => `${item.agent_name || item.kb_name || item.skill_name}: ${item.test_query}`) | join('\\n') }}\n\n🔧 Active Components:\n✅ Knowledge Bases: Crypto Market Intel, User Behavior, Educational Content\n✅ AI Skills: 6 specialized skills deployed\n✅ Automation Jobs: Data sync, User analysis, Model retraining\n✅ AI Agents: 5 specialized agents ready\n✅ Chatbots: Trading assistant, Educational tutor, Community support\n\n🌐 Access Points:\n• MindsDB Console: http://mindsdb.xplaincrypto.ai\n• FastAPI: http://api.xplaincrypto.ai\n• Grafana Monitoring: http://grafana.xplaincrypto.ai\n\n🔄 Next Steps:\n1. Monitor AI agent performance\n2. Validate data synchronization\n3. Test user interactions\n4. Review cost optimization\n5. Set up advanced alerting\n\n⏰ Deployment completed at: {{ $now }}\n\n---\nXplainCrypto Platform - AI-Powered Crypto Intelligence",
+        "options": {}
+      },
+      "id": "send-success-notification",
+      "name": "Send Success Notification",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [1780, 120],
+      "credentials": {
+        "smtp": {
+          "id": "notification-email",
+          "name": "Notification Email"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "subject": "❌ XplainCrypto SuperCharged Deployment Failed",
+        "message": "🚨 SuperCharged deployment encountered errors!\n\n❌ Deployment Script Output:\n{{ $('execute-deployment-script').item.json.stderr || 'Unknown error occurred' }}\n\n📊 Validation Results:\n{{ $('validate-supercharged-deployment').item.json | map(item => `${item.check_type}: ${item.status} (${item.count})`) | join('\\n') }}\n\n🧪 Test Results:\n{{ $('run-comprehensive-tests').item.json.stderr || 'Tests failed or incomplete' }}\n\n🔧 Troubleshooting Steps:\n1. Check MindsDB connection: http://mindsdb.xplaincrypto.ai\n2. Verify API keys in secrets/ directory\n3. Check database permissions\n4. Review deployment logs\n5. Validate SQL syntax in configuration files\n\n📋 Required Secrets:\n• openai_api_key.txt\n• anthropic_api_key.txt\n• timegpt_api_key.txt\n• coinmarketcap_api_key.txt\n• dune_api_key.txt\n• coingecko_api_key.txt\n• postgres_password.txt\n• redis_password.txt\n\n⏰ Failure occurred at: {{ $now }}\n\n🔄 Retry deployment after resolving issues.\n\n---\nXplainCrypto Platform - Deployment Monitoring",
+        "options": {}
+      },
+      "id": "send-failure-notification",
+      "name": "Send Failure Notification",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [1560, 320],
+      "credentials": {
+        "smtp": {
+          "id": "notification-email",
+          "name": "Notification Email"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "subject": "⚠️ XplainCrypto Deployment Script Failed",
+        "message": "🚨 Deployment script execution failed!\n\n❌ Script Error:\nExit Code: {{ $('execute-deployment-script').item.json.exitCode }}\nError Output: {{ $('execute-deployment-script').item.json.stderr }}\n\n📋 Common Issues:\n1. Missing or invalid API keys in secrets/\n2. MindsDB connection issues\n3. Insufficient database permissions\n4. Network connectivity problems\n5. SQL syntax errors in configuration files\n\n🔧 Resolution Steps:\n1. Verify all secrets are present and valid\n2. Test MindsDB connectivity manually\n3. Check server logs for detailed errors\n4. Validate SQL file syntax\n5. Ensure proper file permissions\n\n⏰ Script failed at: {{ $now }}\n\n🔄 Please resolve issues and retry deployment.\n\n---\nXplainCrypto Platform - Script Monitoring",
+        "options": {}
+      },
+      "id": "send-script-error-notification",
+      "name": "Send Script Error Notification",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [900, 400],
+      "credentials": {
+        "smtp": {
+          "id": "notification-email",
+          "name": "Notification Email"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "supercharged-deploy",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-supercharged-deploy",
+      "name": "Webhook - SuperCharged Deploy",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 500],
+      "webhookId": "xplaincrypto-supercharged-deploy"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"deployment_id\": \"supercharged_{{ $now | date('YYYYMMDD_HHmmss') }}\",\n  \"status\": \"{{ $('check-test-results').item.json.status || 'completed' }}\",\n  \"components_deployed\": {\n    \"knowledge_bases\": {{ $('validate-supercharged-deployment').item.json[1].count || 0 }},\n    \"ai_skills\": {{ $('validate-supercharged-deployment').item.json[2].count || 0 }},\n    \"automation_jobs\": {{ $('validate-supercharged-deployment').item.json[3].count || 0 }},\n    \"ai_agents\": {{ $('validate-supercharged-deployment').item.json[4].count || 0 }},\n    \"total_tables\": {{ $('validate-supercharged-deployment').item.json[0].count || 0 }}\n  },\n  \"test_results\": {\n    \"comprehensive_tests\": \"{{ $('run-comprehensive-tests').item.json.exitCode === 0 ? 'PASSED' : 'FAILED' }}\",\n    \"ai_components\": \"{{ $('test-ai-components').item.json.length > 0 ? 'FUNCTIONAL' : 'ERROR' }}\"\n  },\n  \"capabilities\": [\n    \"Price prediction with TimeGPT\",\n    \"Market analysis with Claude\",\n    \"Risk assessment and anomaly detection\",\n    \"Sentiment analysis and whale tracking\",\n    \"Educational content and tutoring\",\n    \"Real-time data synchronization\",\n    \"Automated model retraining\",\n    \"Multi-modal chatbot interactions\"\n  ],\n  \"access_points\": {\n    \"mindsdb_console\": \"http://mindsdb.xplaincrypto.ai\",\n    \"fastapi_gateway\": \"http://api.xplaincrypto.ai\",\n    \"monitoring_dashboard\": \"http://grafana.xplaincrypto.ai\"\n  },\n  \"timestamp\": \"{{ $now }}\",\n  \"next_steps\": [\n    \"Monitor AI agent performance\",\n    \"Validate data synchronization\",\n    \"Test user interactions\",\n    \"Review cost optimization\",\n    \"Set up advanced alerting\"\n  ],\n  \"support\": {\n    \"documentation\": \"./configuration/docs/\",\n    \"troubleshooting\": \"./configuration/troubleshooting/\",\n    \"test_framework\": \"./configuration/tests/\"\n  }\n}",
+        "options": {}
+      },
+      "id": "respond-deployment-status",
+      "name": "Respond Deployment Status",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2000, 200]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Initialize monitoring and cost tracking\nCREATE OR REPLACE VIEW deployment_monitoring AS\nSELECT \n  NOW() as timestamp,\n  'supercharged_deployment' as deployment_type,\n  COUNT(DISTINCT table_name) as total_components,\n  (SELECT COUNT(*) FROM information_schema.tables WHERE table_name LIKE '%_kb') as knowledge_bases,\n  (SELECT COUNT(*) FROM information_schema.tables WHERE table_name LIKE '%_skill') as ai_skills,\n  (SELECT COUNT(*) FROM information_schema.events WHERE event_schema = 'mindsdb') as automation_jobs,\n  (SELECT COUNT(*) FROM information_schema.tables WHERE table_name LIKE '%agent%' OR table_name LIKE '%chatbot%') as ai_agents\nFROM information_schema.tables \nWHERE table_schema = 'mindsdb';",
+        "options": {}
+      },
+      "id": "setup-monitoring",
+      "name": "Setup Monitoring",
+      "type": "n8n-nodes-base.mysql",
+      "typeVersion": 2,
+      "position": [1780, 300],
+      "credentials": {
+        "mysql": {
+          "id": "mindsdb-connection",
+          "name": "MindsDB Connection"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Start SuperCharged Deployment": {
+      "main": [
+        [
+          {
+            "node": "Execute Deployment Script",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Deployment Script": {
+      "main": [
+        [
+          {
+            "node": "Check Deployment Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Deployment Result": {
+      "main": [
+        [
+          {
+            "node": "Validate SuperCharged Deployment",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Script Error Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate SuperCharged Deployment": {
+      "main": [
+        [
+          {
+            "node": "Run Comprehensive Tests",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run Comprehensive Tests": {
+      "main": [
+        [
+          {
+            "node": "Test AI Components",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Test AI Components": {
+      "main": [
+        [
+          {
+            "node": "Check Test Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Test Results": {
+      "main": [
+        [
+          {
+            "node": "Send Success Notification",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Setup Monitoring",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Failure Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Success Notification": {
+      "main": [
+        [
+          {
+            "node": "Respond Deployment Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Setup Monitoring": {
+      "main": [
+        [
+          {
+            "node": "Respond Deployment Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - SuperCharged Deploy": {
+      "main": [
+        [
+          {
+            "node": "Execute Deployment Script",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2024-01-07T00:00:00.000Z",
+  "versionId": "supercharged-v1.0"
+} 

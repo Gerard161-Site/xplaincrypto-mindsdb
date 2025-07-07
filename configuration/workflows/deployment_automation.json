@@ -1,0 +1,610 @@
+
+{
+  "name": "XplainCrypto MindsDB Deployment Automation",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "start-deployment",
+      "name": "Start Deployment",
+      "type": "n8n-nodes-base.start",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT 'MindsDB Connection Test' as test, NOW() as timestamp",
+        "options": {}
+      },
+      "id": "test-mindsdb-connection",
+      "name": "Test MindsDB Connection",
+      "type": "n8n-nodes-base.mysql",
+      "typeVersion": 2,
+      "position": [460, 300],
+      "credentials": {
+        "mysql": {
+          "id": "mindsdb-connection",
+          "name": "MindsDB Connection"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "connection-success",
+              "leftValue": "={{ $json.test }}",
+              "rightValue": "MindsDB Connection Test",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-connection-status",
+      "name": "Check Connection Status",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Deploy Knowledge Bases\nSOURCE sql/knowledge_bases/crypto_market_intel.sql;\nSOURCE sql/knowledge_bases/user_behavior.sql;\nSOURCE sql/knowledge_bases/educational_content.sql;",
+        "options": {}
+      },
+      "id": "deploy-knowledge-bases",
+      "name": "Deploy Knowledge Bases",
+      "type": "n8n-nodes-base.mysql",
+      "typeVersion": 2,
+      "position": [900, 200],
+      "credentials": {
+        "mysql": {
+          "id": "mindsdb-connection",
+          "name": "MindsDB Connection"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Deploy AI Skills\nSOURCE sql/skills/crypto_data_sql_skill.sql;\nSOURCE sql/skills/user_analytics_sql_skill.sql;\nSOURCE sql/skills/market_analysis_kb_skill.sql;\nSOURCE sql/skills/education_kb_skill.sql;\nSOURCE sql/skills/sentiment_analysis_skill.sql;\nSOURCE sql/skills/risk_assessment_skill.sql;",
+        "options": {}
+      },
+      "id": "deploy-ai-skills",
+      "name": "Deploy AI Skills",
+      "type": "n8n-nodes-base.mysql",
+      "typeVersion": 2,
+      "position": [1120, 200],
+      "credentials": {
+        "mysql": {
+          "id": "mindsdb-connection",
+          "name": "MindsDB Connection"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Deploy Automation Jobs\nSOURCE sql/jobs/market_data_sync_job.sql;\nSOURCE sql/jobs/user_behavior_analysis_job.sql;\nSOURCE sql/jobs/model_retraining_job.sql;",
+        "options": {}
+      },
+      "id": "deploy-automation-jobs",
+      "name": "Deploy Automation Jobs",
+      "type": "n8n-nodes-base.mysql",
+      "typeVersion": 2,
+      "position": [1340, 200],
+      "credentials": {
+        "mysql": {
+          "id": "mindsdb-connection",
+          "name": "MindsDB Connection"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Deploy Views and Triggers\nSOURCE sql/views/crypto_market_view.sql;\nSOURCE sql/views/user_behavior_view.sql;\nSOURCE sql/triggers/price_alert_trigger.sql;\nSOURCE sql/triggers/user_question_trigger.sql;",
+        "options": {}
+      },
+      "id": "deploy-views-triggers",
+      "name": "Deploy Views & Triggers",
+      "type": "n8n-nodes-base.mysql",
+      "typeVersion": 2,
+      "position": [1560, 200],
+      "credentials": {
+        "mysql": {
+          "id": "mindsdb-connection",
+          "name": "MindsDB Connection"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Deploy Chatbots\nSOURCE sql/chatbots/crypto_tutor_chatbot.sql;\nSOURCE sql/chatbots/trading_assistant_chatbot.sql;\nSOURCE sql/chatbots/community_support_chatbot.sql;",
+        "options": {}
+      },
+      "id": "deploy-chatbots",
+      "name": "Deploy Chatbots",
+      "type": "n8n-nodes-base.mysql",
+      "typeVersion": 2,
+      "position": [1780, 200],
+      "credentials": {
+        "mysql": {
+          "id": "mindsdb-connection",
+          "name": "MindsDB Connection"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Run comprehensive validation\nSELECT \n  'Knowledge Bases' as component,\n  COUNT(*) as kb_count\nFROM information_schema.tables \nWHERE table_schema = 'mindsdb' \nAND table_name LIKE '%_kb'\n\nUNION ALL\n\nSELECT \n  'Skills' as component,\n  COUNT(*) as skill_count\nFROM information_schema.tables \nWHERE table_schema = 'mindsdb' \nAND table_name LIKE '%_skill'\n\nUNION ALL\n\nSELECT \n  'Jobs' as component,\n  COUNT(*) as job_count\nFROM information_schema.events \nWHERE event_schema = 'mindsdb'\n\nUNION ALL\n\nSELECT \n  'Chatbots' as component,\n  COUNT(*) as chatbot_count\nFROM information_schema.tables \nWHERE table_schema = 'mindsdb' \nAND table_name LIKE '%chatbot%';",
+        "options": {}
+      },
+      "id": "validate-deployment",
+      "name": "Validate Deployment",
+      "type": "n8n-nodes-base.mysql",
+      "typeVersion": 2,
+      "position": [2000, 200],
+      "credentials": {
+        "mysql": {
+          "id": "mindsdb-connection",
+          "name": "MindsDB Connection"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "deployment-success",
+              "leftValue": "={{ $json.length }}",
+              "rightValue": 4,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-deployment-status",
+      "name": "Check Deployment Status",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [2220, 200]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Run comprehensive tests\npython tests/run_comprehensive_tests.py",
+        "options": {}
+      },
+      "id": "run-comprehensive-tests",
+      "name": "Run Comprehensive Tests",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [2440, 120]
+    },
+    {
+      "parameters": {
+        "subject": "✅ XplainCrypto MindsDB Deployment Successful",
+        "message": "Deployment completed successfully!\n\nComponents deployed:\n- Knowledge Bases: {{ $('validate-deployment').item.json.kb_count }}\n- AI Skills: {{ $('validate-deployment').item.json.skill_count }}\n- Automation Jobs: {{ $('validate-deployment').item.json.job_count }}\n- Chatbots: {{ $('validate-deployment').item.json.chatbot_count }}\n\nTest Results:\n{{ $('run-comprehensive-tests').item.json }}\n\nDeployment completed at: {{ $now }}\n\nNext steps:\n1. Monitor system performance\n2. Validate user interactions\n3. Check data synchronization\n\nDashboard: http://localhost:47334\nDocumentation: ./docs/",
+        "options": {}
+      },
+      "id": "send-success-notification",
+      "name": "Send Success Notification",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [2660, 120],
+      "credentials": {
+        "smtp": {
+          "id": "notification-email",
+          "name": "Notification Email"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "subject": "❌ XplainCrypto MindsDB Deployment Failed",
+        "message": "Deployment failed during validation phase.\n\nError details:\n{{ $('validate-deployment').item.json }}\n\nFailed at: {{ $now }}\n\nTroubleshooting steps:\n1. Check MindsDB connection\n2. Verify SQL script syntax\n3. Check database permissions\n4. Review error logs\n\nPlease check the deployment logs and retry.",
+        "options": {}
+      },
+      "id": "send-failure-notification",
+      "name": "Send Failure Notification",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [2440, 280],
+      "credentials": {
+        "smtp": {
+          "id": "notification-email",
+          "name": "Notification Email"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "subject": "❌ MindsDB Connection Failed",
+        "message": "Failed to connect to MindsDB instance.\n\nConnection details:\n- Host: {{ $('test-mindsdb-connection').item.json.host || 'localhost' }}\n- Port: {{ $('test-mindsdb-connection').item.json.port || '47334' }}\n\nError occurred at: {{ $now }}\n\nPlease verify:\n1. MindsDB service is running\n2. Connection credentials are correct\n3. Network connectivity\n4. Firewall settings\n\nRetry deployment after resolving connection issues.",
+        "options": {}
+      },
+      "id": "send-connection-error",
+      "name": "Send Connection Error",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [900, 400],
+      "credentials": {
+        "smtp": {
+          "id": "notification-email",
+          "name": "Notification Email"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Log deployment attempt\nINSERT INTO deployment_log (\n  deployment_id,\n  status,\n  started_at,\n  components,\n  error_message\n) VALUES (\n  '{{ $('start-deployment').item.json.id || CONCAT('deploy_', UNIX_TIMESTAMP()) }}',\n  'started',\n  NOW(),\n  'knowledge_bases,skills,jobs,triggers,chatbots',\n  NULL\n);",
+        "options": {}
+      },
+      "id": "log-deployment-start",
+      "name": "Log Deployment Start",
+      "type": "n8n-nodes-base.mysql",
+      "typeVersion": 2,
+      "position": [460, 180],
+      "credentials": {
+        "mysql": {
+          "id": "mindsdb-connection",
+          "name": "MindsDB Connection"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Update deployment log with success\nUPDATE deployment_log \nSET \n  status = 'completed',\n  completed_at = NOW(),\n  components_deployed = '{{ $('validate-deployment').item.json.length }}',\n  test_results = '{{ $('run-comprehensive-tests').item.json.success_rate || 'N/A' }}'\nWHERE deployment_id = '{{ $('start-deployment').item.json.id || CONCAT('deploy_', UNIX_TIMESTAMP()) }}';",
+        "options": {}
+      },
+      "id": "log-deployment-success",
+      "name": "Log Deployment Success",
+      "type": "n8n-nodes-base.mysql",
+      "typeVersion": 2,
+      "position": [2660, 200],
+      "credentials": {
+        "mysql": {
+          "id": "mindsdb-connection",
+          "name": "MindsDB Connection"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Update deployment log with failure\nUPDATE deployment_log \nSET \n  status = 'failed',\n  completed_at = NOW(),\n  error_message = 'Deployment validation failed'\nWHERE deployment_id = '{{ $('start-deployment').item.json.id || CONCAT('deploy_', UNIX_TIMESTAMP()) }}';",
+        "options": {}
+      },
+      "id": "log-deployment-failure",
+      "name": "Log Deployment Failure",
+      "type": "n8n-nodes-base.mysql",
+      "typeVersion": 2,
+      "position": [2440, 360],
+      "credentials": {
+        "mysql": {
+          "id": "mindsdb-connection",
+          "name": "MindsDB Connection"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "deploy-status",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-deployment-status",
+      "name": "Webhook - Deployment Status",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 500],
+      "webhookId": "xplaincrypto-deploy-status"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"deployment_id\": \"{{ $('start-deployment').item.json.id || 'unknown' }}\",\n  \"status\": \"{{ $('check-deployment-status').item.json.status || 'unknown' }}\",\n  \"components_deployed\": {\n    \"knowledge_bases\": {{ $('validate-deployment').item.json.kb_count || 0 }},\n    \"skills\": {{ $('validate-deployment').item.json.skill_count || 0 }},\n    \"jobs\": {{ $('validate-deployment').item.json.job_count || 0 }},\n    \"chatbots\": {{ $('validate-deployment').item.json.chatbot_count || 0 }}\n  },\n  \"test_results\": {{ $('run-comprehensive-tests').item.json || {} }},\n  \"timestamp\": \"{{ $now }}\",\n  \"next_steps\": [\n    \"Monitor system performance\",\n    \"Validate user interactions\", \n    \"Check data synchronization\"\n  ]\n}",
+        "options": {}
+      },
+      "id": "respond-deployment-status",
+      "name": "Respond Deployment Status",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2880, 200]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Initialize data synchronization\nSOURCE data_sync/historical_sync.py;\nSOURCE data_sync/real_time_sync.sql;\nSOURCE data_sync/schedule_sync.sql;",
+        "options": {}
+      },
+      "id": "initialize-data-sync",
+      "name": "Initialize Data Sync",
+      "type": "n8n-nodes-base.mysql",
+      "typeVersion": 2,
+      "position": [1780, 300],
+      "credentials": {
+        "mysql": {
+          "id": "mindsdb-connection",
+          "name": "MindsDB Connection"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Deploy performance optimization\nSOURCE sql/optimize/query_performance.sql;\nSOURCE sql/optimize/cost_optimization.sql;\nSOURCE sql/optimize/resource_allocation.sql;",
+        "options": {}
+      },
+      "id": "deploy-optimization",
+      "name": "Deploy Optimization",
+      "type": "n8n-nodes-base.mysql",
+      "typeVersion": 2,
+      "position": [2000, 300],
+      "credentials": {
+        "mysql": {
+          "id": "mindsdb-connection",
+          "name": "MindsDB Connection"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Start Deployment": {
+      "main": [
+        [
+          {
+            "node": "Test MindsDB Connection",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log Deployment Start",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Test MindsDB Connection": {
+      "main": [
+        [
+          {
+            "node": "Check Connection Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Connection Status": {
+      "main": [
+        [
+          {
+            "node": "Deploy Knowledge Bases",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Connection Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Deploy Knowledge Bases": {
+      "main": [
+        [
+          {
+            "node": "Deploy AI Skills",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Deploy AI Skills": {
+      "main": [
+        [
+          {
+            "node": "Deploy Automation Jobs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Deploy Automation Jobs": {
+      "main": [
+        [
+          {
+            "node": "Deploy Views & Triggers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Deploy Views & Triggers": {
+      "main": [
+        [
+          {
+            "node": "Deploy Chatbots",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Deploy Chatbots": {
+      "main": [
+        [
+          {
+            "node": "Initialize Data Sync",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Initialize Data Sync": {
+      "main": [
+        [
+          {
+            "node": "Deploy Optimization",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Deploy Optimization": {
+      "main": [
+        [
+          {
+            "node": "Validate Deployment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Deployment": {
+      "main": [
+        [
+          {
+            "node": "Check Deployment Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Deployment Status": {
+      "main": [
+        [
+          {
+            "node": "Run Comprehensive Tests",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Failure Notification",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log Deployment Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run Comprehensive Tests": {
+      "main": [
+        [
+          {
+            "node": "Send Success Notification",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log Deployment Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Deployment Success": {
+      "main": [
+        [
+          {
+            "node": "Respond Deployment Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Deployment Status": {
+      "main": [
+        [
+          {
+            "node": "Start Deployment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "error-handler-workflow"
+  },
+  "versionId": "1.0.0",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "xplaincrypto-mindsdb-deployment"
+  },
+  "id": "xplaincrypto-deployment-automation",
+  "tags": [
+    {
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z",
+      "id": "deployment",
+      "name": "deployment"
+    },
+    {
+      "createdAt": "2024-01-01T00:00:00.000Z", 
+      "updatedAt": "2024-01-01T00:00:00.000Z",
+      "id": "mindsdb",
+      "name": "mindsdb"
+    },
+    {
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z", 
+      "id": "xplaincrypto",
+      "name": "xplaincrypto"
+    }
+  ]
+}
+

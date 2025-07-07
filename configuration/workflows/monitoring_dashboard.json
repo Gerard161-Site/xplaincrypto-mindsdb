@@ -1,0 +1,564 @@
+
+{
+  "name": "XplainCrypto MindsDB Monitoring Dashboard",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
+        }
+      },
+      "id": "monitoring-schedule",
+      "name": "Monitoring Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- System Health Check\nSELECT \n  'system_health' as metric_type,\n  COUNT(DISTINCT event_name) as active_jobs,\n  COUNT(DISTINCT table_name) as active_tables,\n  NOW() as check_time\nFROM information_schema.events e\nCROSS JOIN information_schema.tables t\nWHERE e.event_schema = 'mindsdb' \nAND t.table_schema = 'mindsdb'\nAND e.status = 'ENABLED';",
+        "options": {}
+      },
+      "id": "system-health-check",
+      "name": "System Health Check",
+      "type": "n8n-nodes-base.mysql",
+      "typeVersion": 2,
+      "position": [460, 200],
+      "credentials": {
+        "mysql": {
+          "id": "mindsdb-connection",
+          "name": "MindsDB Connection"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Knowledge Base Performance\nSELECT \n  'knowledge_base_metrics' as metric_type,\n  COUNT(*) as total_entries,\n  COUNT(DISTINCT asset) as unique_assets,\n  AVG(sentiment_score) as avg_sentiment,\n  MAX(timestamp) as latest_update\nFROM crypto_market_intel\nWHERE timestamp >= DATE_SUB(NOW(), INTERVAL 1 HOUR)\n\nUNION ALL\n\nSELECT \n  'user_behavior_metrics' as metric_type,\n  COUNT(*) as total_behaviors,\n  COUNT(DISTINCT user_segment) as unique_segments,\n  AVG(confidence_score) as avg_confidence,\n  MAX(timestamp) as latest_update\nFROM user_behavior_kb\nWHERE timestamp >= DATE_SUB(NOW(), INTERVAL 1 HOUR)\n\nUNION ALL\n\nSELECT \n  'educational_metrics' as metric_type,\n  COUNT(*) as total_content,\n  COUNT(DISTINCT topic) as unique_topics,\n  AVG(CAST(SUBSTRING_INDEX(estimated_time, ' ', 1) AS UNSIGNED)) as avg_time_minutes,\n  NOW() as latest_update\nFROM educational_content_kb;",
+        "options": {}
+      },
+      "id": "knowledge-base-metrics",
+      "name": "Knowledge Base Metrics",
+      "type": "n8n-nodes-base.mysql",
+      "typeVersion": 2,
+      "position": [680, 200],
+      "credentials": {
+        "mysql": {
+          "id": "mindsdb-connection",
+          "name": "MindsDB Connection"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Data Quality Monitoring\nSELECT \n  'data_quality' as metric_type,\n  table_name,\n  COUNT(*) as record_count,\n  AVG(data_quality_score) as avg_quality_score,\n  MIN(last_updated) as oldest_record,\n  MAX(last_updated) as newest_record,\n  TIMESTAMPDIFF(MINUTE, MAX(last_updated), NOW()) as minutes_since_update\nFROM (\n  SELECT \n    'real_time_prices' as table_name,\n    data_quality_score,\n    last_updated\n  FROM crypto_data_db.real_time_prices\n  WHERE last_updated >= DATE_SUB(NOW(), INTERVAL 2 HOUR)\n  \n  UNION ALL\n  \n  SELECT \n    'defi_real_time' as table_name,\n    CASE WHEN tvl > 0 THEN 1.0 ELSE 0.0 END as data_quality_score,\n    last_updated\n  FROM crypto_data_db.defi_real_time\n  WHERE last_updated >= DATE_SUB(NOW(), INTERVAL 2 HOUR)\n  \n  UNION ALL\n  \n  SELECT \n    'social_sentiment' as table_name,\n    CASE WHEN sentiment_score BETWEEN -1 AND 1 THEN 1.0 ELSE 0.0 END as data_quality_score,\n    last_updated\n  FROM crypto_data_db.social_sentiment\n  WHERE last_updated >= DATE_SUB(NOW(), INTERVAL 2 HOUR)\n) data_quality_check\nGROUP BY table_name;",
+        "options": {}
+      },
+      "id": "data-quality-monitoring",
+      "name": "Data Quality Monitoring",
+      "type": "n8n-nodes-base.mysql",
+      "typeVersion": 2,
+      "position": [900, 200],
+      "credentials": {
+        "mysql": {
+          "id": "mindsdb-connection",
+          "name": "MindsDB Connection"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Model Performance Monitoring\nSELECT \n  'model_performance' as metric_type,\n  model_name,\n  accuracy_score,\n  prediction_drift,\n  error_rate,\n  metric_date,\n  CASE \n    WHEN accuracy_score < 0.7 THEN 'critical'\n    WHEN accuracy_score < 0.8 THEN 'warning'\n    ELSE 'healthy'\n  END as status\nFROM crypto_data_db.model_performance_metrics\nWHERE metric_date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)\nORDER BY metric_date DESC, model_name;",
+        "options": {}
+      },
+      "id": "model-performance-monitoring",
+      "name": "Model Performance Monitoring",
+      "type": "n8n-nodes-base.mysql",
+      "typeVersion": 2,
+      "position": [1120, 200],
+      "credentials": {
+        "mysql": {
+          "id": "mindsdb-connection",
+          "name": "MindsDB Connection"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Job Execution Monitoring\nSELECT \n  'job_monitoring' as metric_type,\n  event_name as job_name,\n  status,\n  last_executed,\n  next_execution,\n  CASE \n    WHEN status = 'ENABLED' AND next_execution < NOW() THEN 'overdue'\n    WHEN status = 'DISABLED' THEN 'disabled'\n    WHEN status = 'ENABLED' THEN 'scheduled'\n    ELSE 'unknown'\n  END as job_status,\n  TIMESTAMPDIFF(MINUTE, last_executed, NOW()) as minutes_since_execution\nFROM information_schema.events\nWHERE event_schema = 'mindsdb'\nORDER BY last_executed DESC;",
+        "options": {}
+      },
+      "id": "job-execution-monitoring",
+      "name": "Job Execution Monitoring",
+      "type": "n8n-nodes-base.mysql",
+      "typeVersion": 2,
+      "position": [1340, 200],
+      "credentials": {
+        "mysql": {
+          "id": "mindsdb-connection",
+          "name": "MindsDB Connection"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- User Activity Monitoring\nSELECT \n  'user_activity' as metric_type,\n  COUNT(DISTINCT user_id) as active_users_1h,\n  COUNT(*) as total_interactions_1h,\n  AVG(sentiment_score) as avg_sentiment_1h,\n  COUNT(CASE WHEN interaction_type = 'question' THEN 1 END) as questions_1h,\n  COUNT(CASE WHEN interaction_type = 'trade' THEN 1 END) as trades_1h,\n  COUNT(CASE WHEN interaction_type = 'learning' THEN 1 END) as learning_sessions_1h\nFROM (\n  SELECT \n    user_id,\n    'social' as interaction_type,\n    sentiment_score,\n    created_at\n  FROM user_data_db.social_interactions\n  WHERE created_at >= DATE_SUB(NOW(), INTERVAL 1 HOUR)\n  \n  UNION ALL\n  \n  SELECT \n    user_id,\n    'trade' as interaction_type,\n    profit_loss_percentage / 100 as sentiment_score,\n    trade_date as created_at\n  FROM user_data_db.user_trades\n  WHERE trade_date >= DATE_SUB(NOW(), INTERVAL 1 HOUR)\n  \n  UNION ALL\n  \n  SELECT \n    user_id,\n    'learning' as interaction_type,\n    completion_percentage / 100 as sentiment_score,\n    session_start as created_at\n  FROM user_data_db.learning_sessions\n  WHERE session_start >= DATE_SUB(NOW(), INTERVAL 1 HOUR)\n) user_activities;",
+        "options": {}
+      },
+      "id": "user-activity-monitoring",
+      "name": "User Activity Monitoring",
+      "type": "n8n-nodes-base.mysql",
+      "typeVersion": 2,
+      "position": [1560, 200],
+      "credentials": {
+        "mysql": {
+          "id": "mindsdb-connection",
+          "name": "MindsDB Connection"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Compile monitoring dashboard data\nconst systemHealth = $('system-health-check').all();\nconst knowledgeBaseMetrics = $('knowledge-base-metrics').all();\nconst dataQuality = $('data-quality-monitoring').all();\nconst modelPerformance = $('model-performance-monitoring').all();\nconst jobMonitoring = $('job-execution-monitoring').all();\nconst userActivity = $('user-activity-monitoring').all();\n\n// Calculate overall system health score\nlet healthScore = 100;\nlet alerts = [];\nlet warnings = [];\n\n// Check data quality\nfor (const dq of dataQuality) {\n  if (dq.json.avg_quality_score < 0.7) {\n    healthScore -= 15;\n    alerts.push(`Low data quality in ${dq.json.table_name}: ${(dq.json.avg_quality_score * 100).toFixed(1)}%`);\n  } else if (dq.json.avg_quality_score < 0.8) {\n    healthScore -= 5;\n    warnings.push(`Data quality warning in ${dq.json.table_name}: ${(dq.json.avg_quality_score * 100).toFixed(1)}%`);\n  }\n  \n  if (dq.json.minutes_since_update > 30) {\n    healthScore -= 10;\n    alerts.push(`Stale data in ${dq.json.table_name}: ${dq.json.minutes_since_update} minutes old`);\n  }\n}\n\n// Check model performance\nfor (const mp of modelPerformance) {\n  if (mp.json.status === 'critical') {\n    healthScore -= 20;\n    alerts.push(`Critical model performance: ${mp.json.model_name} accuracy ${(mp.json.accuracy_score * 100).toFixed(1)}%`);\n  } else if (mp.json.status === 'warning') {\n    healthScore -= 10;\n    warnings.push(`Model performance warning: ${mp.json.model_name} accuracy ${(mp.json.accuracy_score * 100).toFixed(1)}%`);\n  }\n}\n\n// Check job execution\nfor (const job of jobMonitoring) {\n  if (job.json.job_status === 'overdue') {\n    healthScore -= 15;\n    alerts.push(`Overdue job: ${job.json.job_name}`);\n  } else if (job.json.job_status === 'disabled') {\n    healthScore -= 5;\n    warnings.push(`Disabled job: ${job.json.job_name}`);\n  }\n}\n\n// Determine overall status\nlet overallStatus;\nif (healthScore >= 90) {\n  overallStatus = 'excellent';\n} else if (healthScore >= 80) {\n  overallStatus = 'good';\n} else if (healthScore >= 70) {\n  overallStatus = 'warning';\n} else {\n  overallStatus = 'critical';\n}\n\n// Compile dashboard data\nconst dashboardData = {\n  timestamp: new Date().toISOString(),\n  overall_health: {\n    score: Math.max(0, healthScore),\n    status: overallStatus,\n    alerts: alerts,\n    warnings: warnings\n  },\n  system_metrics: {\n    active_jobs: systemHealth[0]?.json?.active_jobs || 0,\n    active_tables: systemHealth[0]?.json?.active_tables || 0\n  },\n  knowledge_bases: {\n    crypto_market_intel: knowledgeBaseMetrics.find(kb => kb.json.metric_type === 'knowledge_base_metrics'),\n    user_behavior: knowledgeBaseMetrics.find(kb => kb.json.metric_type === 'user_behavior_metrics'),\n    educational_content: knowledgeBaseMetrics.find(kb => kb.json.metric_type === 'educational_metrics')\n  },\n  data_quality: dataQuality.map(dq => ({\n    table: dq.json.table_name,\n    quality_score: dq.json.avg_quality_score,\n    record_count: dq.json.record_count,\n    freshness_minutes: dq.json.minutes_since_update\n  })),\n  model_performance: modelPerformance.map(mp => ({\n    model: mp.json.model_name,\n    accuracy: mp.json.accuracy_score,\n    drift: mp.json.prediction_drift,\n    status: mp.json.status\n  })),\n  job_status: jobMonitoring.map(job => ({\n    name: job.json.job_name,\n    status: job.json.job_status,\n    last_execution_minutes: job.json.minutes_since_execution\n  })),\n  user_activity: {\n    active_users_1h: userActivity[0]?.json?.active_users_1h || 0,\n    total_interactions_1h: userActivity[0]?.json?.total_interactions_1h || 0,\n    avg_sentiment_1h: userActivity[0]?.json?.avg_sentiment_1h || 0,\n    questions_1h: userActivity[0]?.json?.questions_1h || 0,\n    trades_1h: userActivity[0]?.json?.trades_1h || 0,\n    learning_sessions_1h: userActivity[0]?.json?.learning_sessions_1h || 0\n  },\n  recommendations: []\n};\n\n// Generate recommendations\nif (alerts.length > 0) {\n  dashboardData.recommendations.push('Address critical alerts immediately');\n}\nif (warnings.length > 0) {\n  dashboardData.recommendations.push('Review and resolve warnings');\n}\nif (dashboardData.user_activity.active_users_1h < 10) {\n  dashboardData.recommendations.push('Low user activity - check user engagement strategies');\n}\nif (dashboardData.data_quality.some(dq => dq.quality_score < 0.8)) {\n  dashboardData.recommendations.push('Improve data quality monitoring and validation');\n}\nif (dashboardData.model_performance.some(mp => mp.accuracy < 0.8)) {\n  dashboardData.recommendations.push('Retrain underperforming models');\n}\n\nif (dashboardData.recommendations.length === 0) {\n  dashboardData.recommendations.push('System operating optimally - continue monitoring');\n}\n\nreturn [{ json: dashboardData }];"
+      },
+      "id": "compile-dashboard-data",
+      "name": "Compile Dashboard Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1780, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "health-critical",
+              "leftValue": "={{ $json.overall_health.status }}",
+              "rightValue": "critical",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "id": "check-alert-conditions",
+      "name": "Check Alert Conditions",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [2000, 200]
+    },
+    {
+      "parameters": {
+        "subject": "🚨 XplainCrypto MindsDB Critical Alert",
+        "message": "Critical system health issues detected!\n\n🔴 Overall Health Score: {{ $('compile-dashboard-data').item.json.overall_health.score }}%\n🔴 Status: {{ $('compile-dashboard-data').item.json.overall_health.status }}\n\n⚠️ CRITICAL ALERTS:\n{{ $('compile-dashboard-data').item.json.overall_health.alerts.join('\\n') }}\n\n⚠️ WARNINGS:\n{{ $('compile-dashboard-data').item.json.overall_health.warnings.join('\\n') }}\n\n📊 SYSTEM METRICS:\n- Active Jobs: {{ $('compile-dashboard-data').item.json.system_metrics.active_jobs }}\n- Active Tables: {{ $('compile-dashboard-data').item.json.system_metrics.active_tables }}\n- Active Users (1h): {{ $('compile-dashboard-data').item.json.user_activity.active_users_1h }}\n- Total Interactions (1h): {{ $('compile-dashboard-data').item.json.user_activity.total_interactions_1h }}\n\n🔧 IMMEDIATE ACTIONS REQUIRED:\n{{ $('compile-dashboard-data').item.json.recommendations.join('\\n') }}\n\nTimestamp: {{ $('compile-dashboard-data').item.json.timestamp }}\nDashboard: http://localhost:47334\n\nPlease investigate and resolve these issues immediately.",
+        "options": {}
+      },
+      "id": "send-critical-alert",
+      "name": "Send Critical Alert",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [2220, 120],
+      "credentials": {
+        "smtp": {
+          "id": "notification-email",
+          "name": "Notification Email"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK",
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "{\n  \"text\": \"🚨 XplainCrypto MindsDB Critical Alert\",\n  \"blocks\": [\n    {\n      \"type\": \"header\",\n      \"text\": {\n        \"type\": \"plain_text\",\n        \"text\": \"🚨 Critical System Alert\"\n      }\n    },\n    {\n      \"type\": \"section\",\n      \"fields\": [\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*Health Score:* {{ $('compile-dashboard-data').item.json.overall_health.score }}%\"\n        },\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*Status:* {{ $('compile-dashboard-data').item.json.overall_health.status }}\"\n        },\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*Active Users:* {{ $('compile-dashboard-data').item.json.user_activity.active_users_1h }}\"\n        },\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*Active Jobs:* {{ $('compile-dashboard-data').item.json.system_metrics.active_jobs }}\"\n        }\n      ]\n    },\n    {\n      \"type\": \"section\",\n      \"text\": {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*Critical Issues:*\\n{{ $('compile-dashboard-data').item.json.overall_health.alerts.join('\\n') }}\"\n      }\n    },\n    {\n      \"type\": \"actions\",\n      \"elements\": [\n        {\n          \"type\": \"button\",\n          \"text\": {\n            \"type\": \"plain_text\",\n            \"text\": \"View Dashboard\"\n          },\n          \"url\": \"http://localhost:47334\"\n        }\n      ]\n    }\n  ]\n}",
+        "options": {}
+      },
+      "id": "send-slack-alert",
+      "name": "Send Slack Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [2220, 200]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "table": "monitoring_dashboard_log",
+        "columns": "timestamp, health_score, status, alerts_count, warnings_count, active_users, total_interactions, dashboard_data",
+        "values": "={{ $('compile-dashboard-data').item.json.timestamp }}, {{ $('compile-dashboard-data').item.json.overall_health.score }}, '{{ $('compile-dashboard-data').item.json.overall_health.status }}', {{ $('compile-dashboard-data').item.json.overall_health.alerts.length }}, {{ $('compile-dashboard-data').item.json.overall_health.warnings.length }}, {{ $('compile-dashboard-data').item.json.user_activity.active_users_1h }}, {{ $('compile-dashboard-data').item.json.user_activity.total_interactions_1h }}, '{{ JSON.stringify($('compile-dashboard-data').item.json) }}'",
+        "options": {}
+      },
+      "id": "log-dashboard-metrics",
+      "name": "Log Dashboard Metrics",
+      "type": "n8n-nodes-base.mysql",
+      "typeVersion": 2,
+      "position": [2000, 320],
+      "credentials": {
+        "mysql": {
+          "id": "mindsdb-connection",
+          "name": "MindsDB Connection"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "dashboard",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-dashboard-api",
+      "name": "Webhook - Dashboard API",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 500],
+      "webhookId": "xplaincrypto-dashboard-api"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($('compile-dashboard-data').item.json, null, 2) }}",
+        "responseHeaders": {
+          "entries": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Access-Control-Allow-Origin", 
+              "value": "*"
+            },
+            {
+              "name": "Cache-Control",
+              "value": "no-cache, no-store, must-revalidate"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "respond-dashboard-data",
+      "name": "Respond Dashboard Data",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2440, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "health-warning",
+              "leftValue": "={{ $json.overall_health.status }}",
+              "rightValue": "warning",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "id": "check-warning-conditions",
+      "name": "Check Warning Conditions",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [2000, 400]
+    },
+    {
+      "parameters": {
+        "subject": "⚠️ XplainCrypto MindsDB System Warning",
+        "message": "System performance warnings detected.\n\n⚠️ Overall Health Score: {{ $('compile-dashboard-data').item.json.overall_health.score }}%\n⚠️ Status: {{ $('compile-dashboard-data').item.json.overall_health.status }}\n\n📋 WARNINGS:\n{{ $('compile-dashboard-data').item.json.overall_health.warnings.join('\\n') }}\n\n📊 CURRENT METRICS:\n- Active Users (1h): {{ $('compile-dashboard-data').item.json.user_activity.active_users_1h }}\n- Total Interactions (1h): {{ $('compile-dashboard-data').item.json.user_activity.total_interactions_1h }}\n- Average Sentiment: {{ $('compile-dashboard-data').item.json.user_activity.avg_sentiment_1h }}\n\n🔧 RECOMMENDED ACTIONS:\n{{ $('compile-dashboard-data').item.json.recommendations.join('\\n') }}\n\nTimestamp: {{ $('compile-dashboard-data').item.json.timestamp }}\nDashboard: http://localhost:47334\n\nPlease review and address these warnings to maintain optimal performance.",
+        "options": {}
+      },
+      "id": "send-warning-notification",
+      "name": "Send Warning Notification",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [2220, 400],
+      "credentials": {
+        "smtp": {
+          "id": "notification-email",
+          "name": "Notification Email"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Performance Trend Analysis\nSELECT \n  'performance_trends' as metric_type,\n  DATE(timestamp) as date,\n  AVG(health_score) as avg_health_score,\n  AVG(active_users) as avg_active_users,\n  AVG(total_interactions) as avg_interactions,\n  COUNT(CASE WHEN status = 'critical' THEN 1 END) as critical_incidents,\n  COUNT(CASE WHEN status = 'warning' THEN 1 END) as warning_incidents\nFROM monitoring_dashboard_log\nWHERE timestamp >= DATE_SUB(NOW(), INTERVAL 7 DAY)\nGROUP BY DATE(timestamp)\nORDER BY date DESC;",
+        "options": {}
+      },
+      "id": "performance-trend-analysis",
+      "name": "Performance Trend Analysis",
+      "type": "n8n-nodes-base.mysql",
+      "typeVersion": 2,
+      "position": [460, 400],
+      "credentials": {
+        "mysql": {
+          "id": "mindsdb-connection",
+          "name": "MindsDB Connection"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Resource Utilization Monitoring\nSELECT \n  'resource_utilization' as metric_type,\n  'database_size' as resource_type,\n  SUM(data_length + index_length) / 1024 / 1024 as size_mb,\n  COUNT(*) as table_count\nFROM information_schema.tables\nWHERE table_schema = 'mindsdb'\n\nUNION ALL\n\nSELECT \n  'resource_utilization' as metric_type,\n  'active_connections' as resource_type,\n  COUNT(*) as connections,\n  0 as table_count\nFROM information_schema.processlist\nWHERE db = 'mindsdb'\n\nUNION ALL\n\nSELECT \n  'resource_utilization' as metric_type,\n  'query_performance' as resource_type,\n  AVG(TIMESTAMPDIFF(MICROSECOND, start_time, NOW())) / 1000 as avg_query_time_ms,\n  COUNT(*) as active_queries\nFROM information_schema.processlist\nWHERE db = 'mindsdb' AND command != 'Sleep';",
+        "options": {}
+      },
+      "id": "resource-utilization-monitoring",
+      "name": "Resource Utilization Monitoring",
+      "type": "n8n-nodes-base.mysql",
+      "typeVersion": 2,
+      "position": [680, 400],
+      "credentials": {
+        "mysql": {
+          "id": "mindsdb-connection",
+          "name": "MindsDB Connection"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Monitoring Schedule": {
+      "main": [
+        [
+          {
+            "node": "System Health Check",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Performance Trend Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "System Health Check": {
+      "main": [
+        [
+          {
+            "node": "Knowledge Base Metrics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Knowledge Base Metrics": {
+      "main": [
+        [
+          {
+            "node": "Data Quality Monitoring",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Data Quality Monitoring": {
+      "main": [
+        [
+          {
+            "node": "Model Performance Monitoring",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Model Performance Monitoring": {
+      "main": [
+        [
+          {
+            "node": "Job Execution Monitoring",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Job Execution Monitoring": {
+      "main": [
+        [
+          {
+            "node": "User Activity Monitoring",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "User Activity Monitoring": {
+      "main": [
+        [
+          {
+            "node": "Compile Dashboard Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compile Dashboard Data": {
+      "main": [
+        [
+          {
+            "node": "Check Alert Conditions",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log Dashboard Metrics",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Check Warning Conditions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Alert Conditions": {
+      "main": [
+        [
+          {
+            "node": "Send Critical Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send Slack Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Dashboard Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Warning Conditions": {
+      "main": [
+        [
+          {
+            "node": "Send Warning Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Dashboard API": {
+      "main": [
+        [
+          {
+            "node": "System Health Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Performance Trend Analysis": {
+      "main": [
+        [
+          {
+            "node": "Resource Utilization Monitoring",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Critical Alert": {
+      "main": [
+        [
+          {
+            "node": "Respond Dashboard Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Slack Alert": {
+      "main": [
+        [
+          {
+            "node": "Respond Dashboard Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "error-handler-workflow"
+  },
+  "versionId": "1.0.0",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "xplaincrypto-mindsdb-monitoring"
+  },
+  "id": "xplaincrypto-monitoring-dashboard",
+  "tags": [
+    {
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z",
+      "id": "monitoring",
+      "name": "monitoring"
+    },
+    {
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z",
+      "id": "dashboard",
+      "name": "dashboard"
+    },
+    {
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z",
+      "id": "xplaincrypto",
+      "name": "xplaincrypto"
+    }
+  ]
+}
+

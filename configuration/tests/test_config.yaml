@@ -1,0 +1,101 @@
+
+# XplainCrypto MindsDB Test Configuration
+
+# Database connection settings
+database:
+  host: localhost
+  port: 47334
+  user: mindsdb
+  password: ""
+  database: mindsdb
+
+# Test data configuration
+test_data:
+  sample_users: 100
+  sample_trades: 1000
+  sample_content: 50
+  sample_social_interactions: 200
+  sample_learning_sessions: 500
+
+# Performance thresholds (in seconds)
+performance_thresholds:
+  query_response_time: 5.0
+  model_prediction_time: 10.0
+  knowledge_base_search_time: 3.0
+  chatbot_response_time: 8.0
+  trigger_response_time: 1.0
+  job_execution_time: 30.0
+
+# External API testing (set to true to enable real API tests)
+external_apis:
+  coinmarketcap_test: false
+  defillama_test: false
+  social_media_test: false
+  binance_test: false
+
+# Test scenarios configuration
+scenarios:
+  trading_scenario:
+    enabled: true
+    test_assets: ["BTC", "ETH", "BNB"]
+    test_strategies: ["momentum", "mean_reversion", "sentiment_based"]
+    
+  educational_scenario:
+    enabled: true
+    test_levels: ["beginner", "intermediate", "advanced"]
+    test_topics: ["cryptocurrency_fundamentals", "blockchain_technology", "defi_protocols"]
+    
+  social_scenario:
+    enabled: true
+    test_platforms: ["twitter", "reddit", "discord"]
+    test_interactions: ["question", "comment", "discussion"]
+
+# Load testing configuration
+load_testing:
+  concurrent_users: 10
+  test_duration_seconds: 60
+  ramp_up_time_seconds: 10
+  queries_per_user: 20
+
+# Data validation rules
+data_validation:
+  min_knowledge_base_entries: 10
+  min_user_behavior_entries: 5
+  min_educational_content_entries: 15
+  required_skills: ["crypto_data_sql_skill", "user_analytics_sql_skill", "market_analysis_kb_skill", "education_kb_skill"]
+  required_models: ["crypto_price_predictor", "crypto_sentiment_analyzer", "user_behavior_predictor", "crypto_risk_analyzer"]
+
+# Test environment settings
+environment:
+  test_mode: true
+  mock_external_apis: true
+  use_sample_data: true
+  enable_performance_monitoring: true
+  log_level: INFO
+  
+# Notification settings for test results
+notifications:
+  email_enabled: false
+  slack_enabled: false
+  webhook_enabled: false
+  
+# Test reporting configuration
+reporting:
+  generate_html_report: true
+  generate_json_report: true
+  generate_csv_metrics: true
+  include_performance_charts: true
+  save_test_artifacts: true
+
+# Security testing settings
+security:
+  test_sql_injection: true
+  test_authentication: true
+  test_authorization: true
+  test_data_encryption: false
+
+# Backup and recovery testing
+backup_recovery:
+  test_backup_creation: false
+  test_data_recovery: false
+  test_point_in_time_recovery: false
