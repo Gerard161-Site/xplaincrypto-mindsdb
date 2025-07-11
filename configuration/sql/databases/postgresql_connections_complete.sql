@@ -15,7 +15,7 @@ PARAMETERS = {
     "port": 5432,
     "database": "crypto_data",
     "user": "mindsdb",
-    "password": "rfmveurVyThziPsujMdMsnya6JNirlz8nFrcH34o9Xs="
+    "password": ""
 };
 
 -- Database 2: User Data (Port 5433) - ⚠️ REQUIRES CONTAINER TO BE RUNNING
@@ -27,7 +27,7 @@ PARAMETERS = {
     "port": 5433,
     "database": "user_data",
     "user": "xplaincrypto",
-    "password": "SimplePass123"
+    "password": ""
 };
 
 -- Database 3: Operational Data (Port 5434) - ⚠️ REQUIRES CONTAINER TO BE RUNNING
@@ -39,7 +39,7 @@ PARAMETERS = {
     "port": 5434,
     "database": "operational_data",
     "user": "fastapi",
-    "password": "rfmveurVyThziPsujMdMsnya6JNirlz8nFrcH34o9Xs="
+    "password": ""
 };
 
 -- ============================================================================

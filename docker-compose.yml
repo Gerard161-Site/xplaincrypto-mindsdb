@@ -25,7 +25,7 @@ services:
       - REDIS_PORT=6379
       - REDIS_DB=0                    # MindsDB uses DB 0
       - REDIS_PASSWORD=redis_secure_pass_dev123
-      # Database connections  
+      # Database connections (point to external Postgres in core infra)  
       - POSTGRES_HOST=postgres-crypto
       - POSTGRES_PORT=5432
       - POSTGRES_DB=crypto_data
@@ -40,29 +40,6 @@ services:
       test: ["CMD", "curl", "-f", "http://localhost:47334/api/status"]
       interval: 30s
       timeout: 10s
-      retries: 5
-
-  postgres-crypto:
-    image: postgres:15-alpine
-    container_name: xplaincrypto-postgres-crypto
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: crypto_data
-      POSTGRES_USER: mindsdb
-      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_crypto_data:/var/lib/postgresql/data
-      - ./sql/04-dashboards/postgres-tables.sql:/docker-entrypoint-initdb.d/01-init-tables.sql
-    secrets:
-      - postgres_password
-    networks:
-      - xplaincrypto_network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U mindsdb -d crypto_data"]
-      interval: 10s
-      timeout: 5s
       retries: 5
 
 # ====================
@@ -100,13 +77,6 @@ volumes:
       type: none
       o: bind
       device: /var/lib/xplaincrypto/mindsdb
-      
-  postgres_crypto_data:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: /var/lib/xplaincrypto/postgres-crypto
 
 # ====================
 # NETWORKS - CONNECT TO EXISTING INFRASTRUCTURE
