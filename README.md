@@ -27,6 +27,7 @@ chmod +x scripts/setup_prerequisites.sh
 ./scripts/start_services.sh
 ```
 
+
 3. **Deploy MindsDB components:**
 ```bash
 # Access MindsDB
