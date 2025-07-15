@@ -1,1 +1,1 @@
-CREATE DATABASE IF NOT EXISTS user_data_db WITH ENGINE = 'postgres', PARAMETERS = {"host": "142.93.49.20", "port": 5433, "database": "user_data", "user": "xplaincrypto", "password": ""}; 
+CREATE DATABASE IF NOT EXISTS user_data_db WITH ENGINE = 'postgres', PARAMETERS = {"host": "142.93.49.20", "port": 5433, "database": "user_data", "user": "xplaincrypto", "password": "{{ POSTGRES_USERS_PASSWORD }}"}; 
