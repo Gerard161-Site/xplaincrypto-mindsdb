@@ -1,0 +1,1 @@
+CREATE MODEL IF NOT EXISTS crypto_prediction_agent PREDICT price_forecast USING engine = 'openai', model_name = 'gpt-3.5-turbo', prompt_template = 'Based on the crypto data {{input}}, predict the price movement for the next 24 hours. Provide specific price targets and confidence levels.'; 

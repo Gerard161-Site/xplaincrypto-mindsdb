@@ -1,0 +1,1 @@
+CREATE DATABASE IF NOT EXISTS coinmarketcap_ds WITH ENGINE = 'coinmarketcap', PARAMETERS = {"api_key": ""}; 

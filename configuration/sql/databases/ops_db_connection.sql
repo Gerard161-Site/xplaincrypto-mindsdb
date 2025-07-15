@@ -1,0 +1,1 @@
+CREATE DATABASE IF NOT EXISTS operational_data_db WITH ENGINE = 'postgres', PARAMETERS = {"host": "142.93.49.20", "port": 5434, "database": "operational_data", "user": "fastapi", "password": ""}; 

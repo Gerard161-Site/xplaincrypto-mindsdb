@@ -1,0 +1,1 @@
+CREATE DATABASE IF NOT EXISTS crypto_data_db WITH ENGINE = 'postgres', PARAMETERS = {"host": "142.93.49.20", "port": 5432, "database": "crypto_data", "user": "mindsdb", "password": ""}; 
