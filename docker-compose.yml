@@ -26,11 +26,11 @@ services:
       - REDIS_DB=0                    # MindsDB uses DB 0
       - REDIS_PASSWORD=redis_secure_pass_dev123
       
-      # Crypto Database (primary MindsDB database)
+      # Crypto Database (MindsDB AI/ML data) - CORRECTED
       - POSTGRES_HOST=xplaincrypto-postgres-crypto
       - POSTGRES_PORT=5432
-      - POSTGRES_DB=postgres          # Default PostgreSQL database
-      - POSTGRES_USER=postgres        # Default PostgreSQL user
+      - POSTGRES_DB=crypto_data       # FIXED: Actual database name
+      - POSTGRES_USER=mindsdb         # FIXED: Actual username
       
       # Users Database
       - POSTGRES_USERS_HOST=xplaincrypto-postgres-users
@@ -38,11 +38,11 @@ services:
       - POSTGRES_USERS_DB=user_data   # From infra config
       - POSTGRES_USERS_USER=xplaincrypto  # From infra config
       
-      # FastAPI Operational Database
+      # FastAPI Operational Database - CORRECTED
       - POSTGRES_FASTAPI_HOST=xplaincrypto-postgres-fastapi
       - POSTGRES_FASTAPI_PORT=5432    # Internal Docker port
-      - POSTGRES_FASTAPI_DB=postgres  # Default PostgreSQL database
-      - POSTGRES_FASTAPI_USER=postgres # Default PostgreSQL user
+      - POSTGRES_FASTAPI_DB=operational_data  # FIXED: Actual database name
+      - POSTGRES_FASTAPI_USER=fastapi # FIXED: Actual username
       
     networks:
       - xplaincrypto_network          # Explicit network assignment
