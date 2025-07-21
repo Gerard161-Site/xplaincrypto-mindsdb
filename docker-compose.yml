@@ -79,5 +79,6 @@ volumes:
 # ====================
 
 networks:
-  xplaincrypto_network:
-    external: true 
+  default:
+    external: true
+    name: xplaincrypto-infra_xplaincrypto_network
