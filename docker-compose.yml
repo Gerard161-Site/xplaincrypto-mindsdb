@@ -19,18 +19,33 @@ services:
       - ./secrets:/run/secrets:ro
     environment:
       - PYTHONUNBUFFERED=1
-      # Use existing shared Redis
+      
+      # Redis Configuration (shared cache)
       - REDIS_HOST=xplaincrypto-redis
       - REDIS_PORT=6379
       - REDIS_DB=0                    # MindsDB uses DB 0
       - REDIS_PASSWORD=redis_secure_pass_dev123
-      # Database connections (point to external Postgres in core infra)  
-      - POSTGRES_HOST=postgres-crypto
+      
+      # Crypto Database (primary MindsDB database)
+      - POSTGRES_HOST=xplaincrypto-postgres-crypto
       - POSTGRES_PORT=5432
-      - POSTGRES_DB=crypto_data
-      - POSTGRES_USER=mindsdb
+      - POSTGRES_DB=postgres          # Default PostgreSQL database
+      - POSTGRES_USER=postgres        # Default PostgreSQL user
+      
+      # Users Database
+      - POSTGRES_USERS_HOST=xplaincrypto-postgres-users
+      - POSTGRES_USERS_PORT=5432      # Internal Docker port
+      - POSTGRES_USERS_DB=user_data   # From infra config
+      - POSTGRES_USERS_USER=xplaincrypto  # From infra config
+      
+      # FastAPI Operational Database
+      - POSTGRES_FASTAPI_HOST=xplaincrypto-postgres-fastapi
+      - POSTGRES_FASTAPI_PORT=5432    # Internal Docker port
+      - POSTGRES_FASTAPI_DB=postgres  # Default PostgreSQL database
+      - POSTGRES_FASTAPI_USER=postgres # Default PostgreSQL user
+      
     networks:
-      - xplaincrypto_network
+      - xplaincrypto_network          # Explicit network assignment
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:47334/api/status"]
@@ -79,6 +94,6 @@ volumes:
 # ====================
 
 networks:
-  default:
+  xplaincrypto_network:
     external: true
     name: xplaincrypto-infra_xplaincrypto_network
