@@ -32,17 +32,17 @@ services:
       - POSTGRES_DB=crypto_data       # FIXED: Actual database name
       - POSTGRES_USER=mindsdb         # FIXED: Actual username
       
-      # Users Database
-      - POSTGRES_USERS_HOST=142.93.49.20 # Server IP
-      - POSTGRES_USERS_PORT=5433         # External port
-      - POSTGRES_USERS_DB=user_data   # From infra config
-      - POSTGRES_USERS_USER=xplaincrypto  # From infra config
+      # Users Database - TRY INTERNAL HOSTNAME
+      - POSTGRES_USERS_HOST=postgres-users     # Service name from infra
+      - POSTGRES_USERS_PORT=5432              # Internal port
+      - POSTGRES_USERS_DB=user_data
+      - POSTGRES_USERS_USER=xplaincrypto
       
-      # FastAPI Operational Database - CORRECTED
-      - POSTGRES_FASTAPI_HOST=142.93.49.20 # Server IP
-      - POSTGRES_FASTAPI_PORT=5434       # External port
-      - POSTGRES_FASTAPI_DB=operational_data  # FIXED: Actual database name
-      - POSTGRES_FASTAPI_USER=fastapi # FIXED: Actual username
+      # FastAPI Database - TRY INTERNAL HOSTNAME  
+      - POSTGRES_FASTAPI_HOST=postgres-fastapi # Service name from infra
+      - POSTGRES_FASTAPI_PORT=5432            # Internal port
+      - POSTGRES_FASTAPI_DB=operational_data
+      - POSTGRES_FASTAPI_USER=fastapi
       
     networks:
       - xplaincrypto_network          # Explicit network assignment
