@@ -26,18 +26,18 @@ services:
       - REDIS_DB=0                    # MindsDB uses DB 0
       - REDIS_PASSWORD=redis_secure_pass_dev123
       
-      # ALL THREE DATABASES - IDENTICAL PATTERN
-      - POSTGRES_HOST=xplaincrypto-postgres-crypto
+      # ALL THREE DATABASES USE SAME PATTERN - SERVICE NAMES
+      - POSTGRES_HOST=172.26.0.3
       - POSTGRES_PORT=5432
       - POSTGRES_DB=crypto_data
       - POSTGRES_USER=mindsdb
       
-      - POSTGRES_USERS_HOST=xplaincrypto-postgres-users
+      - POSTGRES_USERS_HOST=172.26.0.9
       - POSTGRES_USERS_PORT=5432
       - POSTGRES_USERS_DB=user_data
       - POSTGRES_USERS_USER=xplaincrypto
       
-      - POSTGRES_FASTAPI_HOST=xplaincrypto-postgres-fastapi
+      - POSTGRES_FASTAPI_HOST=172.26.0.10
       - POSTGRES_FASTAPI_PORT=5432
       - POSTGRES_FASTAPI_DB=operational_data
       - POSTGRES_FASTAPI_USER=fastapi
@@ -93,4 +93,4 @@ volumes:
 networks:
   xplaincrypto_network:
     external: true
-    name: xplaincrypto_network  # Use the network that actually exists
+    name: xplaincrypto_network  # Use the network that actually existsroot@mindsdb-crypto:/opt/xplaincrypto/xplaincrypto-mindsdb# 
