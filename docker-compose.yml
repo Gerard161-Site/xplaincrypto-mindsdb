@@ -38,9 +38,9 @@ services:
       - POSTGRES_USERS_DB=user_data
       - POSTGRES_USERS_USER=xplaincrypto
       
-      # FastAPI Database - TRY INTERNAL HOSTNAME  
-      - POSTGRES_FASTAPI_HOST=postgres-fastapi # Service name from infra
-      - POSTGRES_FASTAPI_PORT=5432            # Internal port
+      # FastAPI Database - Use internal IP since hostname fails
+      - POSTGRES_FASTAPI_HOST=172.27.0.X    # Whatever IP you find above
+      - POSTGRES_FASTAPI_PORT=5432
       - POSTGRES_FASTAPI_DB=operational_data
       - POSTGRES_FASTAPI_USER=fastapi
       
@@ -92,7 +92,6 @@ volumes:
 # ====================
 # NETWORKS - CONNECT TO EXISTING INFRASTRUCTURE
 # ====================
-
 networks:
   xplaincrypto_network:
     external: true
