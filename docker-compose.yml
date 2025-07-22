@@ -27,20 +27,20 @@ services:
       - REDIS_PASSWORD=redis_secure_pass_dev123
       
       # Crypto Database (MindsDB AI/ML data) - CORRECTED
-      - POSTGRES_HOST=xplaincrypto-postgres-crypto
-      - POSTGRES_PORT=5432
+      - POSTGRES_HOST=142.93.49.20       # Server IP
+      - POSTGRES_PORT=5432               # External port
       - POSTGRES_DB=crypto_data       # FIXED: Actual database name
       - POSTGRES_USER=mindsdb         # FIXED: Actual username
       
       # Users Database
-      - POSTGRES_USERS_HOST=xplaincrypto-postgres-users
-      - POSTGRES_USERS_PORT=5432      # Internal Docker port
+      - POSTGRES_USERS_HOST=142.93.49.20 # Server IP
+      - POSTGRES_USERS_PORT=5433         # External port
       - POSTGRES_USERS_DB=user_data   # From infra config
       - POSTGRES_USERS_USER=xplaincrypto  # From infra config
       
       # FastAPI Operational Database - CORRECTED
-      - POSTGRES_FASTAPI_HOST=xplaincrypto-postgres-fastapi
-      - POSTGRES_FASTAPI_PORT=5432    # Internal Docker port
+      - POSTGRES_FASTAPI_HOST=142.93.49.20 # Server IP
+      - POSTGRES_FASTAPI_PORT=5434       # External port
       - POSTGRES_FASTAPI_DB=operational_data  # FIXED: Actual database name
       - POSTGRES_FASTAPI_USER=fastapi # FIXED: Actual username
       
