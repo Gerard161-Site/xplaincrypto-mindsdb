@@ -26,20 +26,18 @@ services:
       - REDIS_DB=0                    # MindsDB uses DB 0
       - REDIS_PASSWORD=redis_secure_pass_dev123
       
-      # Crypto Database (MindsDB AI/ML data) - CORRECTED
-      - POSTGRES_HOST=142.93.49.20       # Server IP
-      - POSTGRES_PORT=5432               # External port
-      - POSTGRES_DB=crypto_data       # FIXED: Actual database name
-      - POSTGRES_USER=mindsdb         # FIXED: Actual username
+      # ALL THREE DATABASES USE SAME PATTERN - SERVICE NAMES
+      - POSTGRES_HOST=postgres-crypto
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=crypto_data
+      - POSTGRES_USER=mindsdb
       
-      # Users Database - TRY INTERNAL HOSTNAME
-      - POSTGRES_USERS_HOST=postgres-users     # Service name from infra
-      - POSTGRES_USERS_PORT=5432              # Internal port
+      - POSTGRES_USERS_HOST=postgres-users
+      - POSTGRES_USERS_PORT=5432
       - POSTGRES_USERS_DB=user_data
       - POSTGRES_USERS_USER=xplaincrypto
       
-      # FastAPI Database - Use internal IP since hostname fails
-      - POSTGRES_FASTAPI_HOST=172.27.0.X    # Whatever IP you find above
+      - POSTGRES_FASTAPI_HOST=postgres-fastapi
       - POSTGRES_FASTAPI_PORT=5432
       - POSTGRES_FASTAPI_DB=operational_data
       - POSTGRES_FASTAPI_USER=fastapi
