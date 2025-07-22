@@ -93,4 +93,4 @@ volumes:
 networks:
   xplaincrypto_network:
     external: true
-    name: xplaincrypto-infra_xplaincrypto_network
+    name: xplaincrypto_network  # Use the network that actually exists
